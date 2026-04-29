@@ -6,7 +6,7 @@ This project demonstrates a **production-ready deployment pipeline** for a Resum
 
 The system takes a **resume + job description** as input and returns a **tailored, optimized resume** in **structured JSON format** and **downloadable PDF** — making it suitable for real-world hiring workflows.
 
-> **Live Demo:** [https://techie03.github.io/XAI-Integration-and-Deployment/Model_Deployment.html](https://techie03.github.io/XAI-Integration-and-Deployment/Model_Deployment.html)
+> **Live Demo:** [https://techie03.github.io/Professional-Pitch/Model_Deployment.html](https://techie03.github.io/Professional-Pitch/Model_Deployment.html)
 
 ---
 
