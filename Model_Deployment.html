@@ -1,0 +1,1060 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Model Deployment — Resume Optimization SLM</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Sora:wght@300;400;500;600;700;800&family=DM+Serif+Display:ital@0;1&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --bg: #0c0f1a;
+    --surface: #131828;
+    --surface2: #1a2038;
+    --border: rgba(100,130,255,0.15);
+    --accent: #4f7cff;
+    --accent2: #a78bfa;
+    --accent3: #34d399;
+    --accent4: #f59e0b;
+    --text: #e2e8f0;
+    --text-muted: #94a3b8;
+    --text-dim: #64748b;
+    --danger: #f87171;
+    --mono: 'IBM Plex Mono', monospace;
+    --sans: 'Sora', sans-serif;
+    --serif: 'DM Serif Display', serif;
+  }
+
+  * { margin:0; padding:0; box-sizing:border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    font-size: 15px;
+    line-height: 1.7;
+    overflow-x: hidden;
+  }
+
+  body::before {
+    content: '';
+    position: fixed; inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
+    pointer-events: none; z-index: 0; opacity: 0.4;
+  }
+
+  header {
+    position: sticky; top: 0; z-index: 100;
+    background: rgba(12,15,26,0.92);
+    backdrop-filter: blur(16px);
+    border-bottom: 1px solid var(--border);
+    padding: 0 2rem;
+  }
+  .header-inner {
+    max-width: 1200px; margin: 0 auto;
+    display: flex; align-items: center; justify-content: space-between;
+    height: 60px;
+  }
+  .header-badge { font-family: var(--mono); font-size: 11px; color: var(--text-muted); letter-spacing: 0.1em; text-transform: uppercase; }
+  .header-badge span { color: var(--accent); font-weight: 600; }
+  .header-nav { display: flex; gap: 1.5rem; }
+  .header-nav a { font-family: var(--mono); font-size: 11px; color: var(--text-muted); text-decoration: none; letter-spacing: 0.05em; transition: color .2s; }
+  .header-nav a:hover { color: var(--accent); }
+  .status-dot { display: inline-flex; align-items: center; gap: 6px; font-family: var(--mono); font-size: 11px; color: var(--accent3); }
+  .status-dot::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: var(--accent3); animation: pulse 2s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.3} }
+
+  .hero { position: relative; z-index: 1; padding: 5rem 2rem 4rem; text-align: center; overflow: hidden; }
+  .hero::after { content: ''; position: absolute; top: 0; left: 50%; transform: translateX(-50%); width: 800px; height: 400px; background: radial-gradient(ellipse at center, rgba(79,124,255,0.12) 0%, transparent 70%); pointer-events: none; }
+  .course-label { display: inline-block; font-family: var(--mono); font-size: 11px; letter-spacing: 0.15em; color: var(--accent); text-transform: uppercase; border: 1px solid rgba(79,124,255,0.3); padding: 4px 14px; border-radius: 20px; margin-bottom: 1.5rem; background: rgba(79,124,255,0.05); }
+  .hero h1 { font-family: var(--serif); font-size: clamp(2rem, 5vw, 3.5rem); line-height: 1.15; color: #fff; margin-bottom: 0.75rem; }
+  .hero h1 em { font-style: italic; color: var(--accent2); }
+  .hero .subtitle { font-size: 14px; color: var(--text-muted); font-family: var(--mono); letter-spacing: 0.03em; margin-bottom: 2.5rem; }
+
+  .stats-bar { display: flex; flex-wrap: wrap; justify-content: center; gap: 0; max-width: 900px; margin: 0 auto; border: 1px solid var(--border); border-radius: 12px; overflow: hidden; background: var(--surface); }
+  .stat-item { flex: 1; min-width: 140px; padding: 1rem 1.25rem; border-right: 1px solid var(--border); text-align: center; }
+  .stat-item:last-child { border-right: none; }
+  .stat-val { font-family: var(--mono); font-size: 17px; font-weight: 600; color: var(--accent); display: block; margin-bottom: 2px; }
+  .stat-lbl { font-size: 11px; color: var(--text-muted); letter-spacing: 0.06em; text-transform: uppercase; }
+
+  .toc-section { max-width: 900px; margin: 0 auto 4rem; padding: 0 2rem; position: relative; z-index: 1; }
+  .toc-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 10px; }
+  .toc-item { display: flex; align-items: center; gap: 12px; padding: 14px 18px; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; cursor: pointer; text-decoration: none; transition: all .2s; color: var(--text); }
+  .toc-item:hover { border-color: var(--accent); background: rgba(79,124,255,0.07); transform: translateY(-1px); }
+  .toc-num { font-family: var(--mono); font-size: 11px; color: var(--accent); min-width: 22px; font-weight: 600; }
+  .toc-text { font-size: 13px; color: var(--text-muted); line-height: 1.3; }
+  .toc-text strong { display: block; color: var(--text); font-size: 13.5px; margin-bottom: 1px; }
+  .toc-tag { margin-left: auto; font-family: var(--mono); font-size: 10px; color: var(--text-dim); border: 1px solid var(--border); padding: 2px 7px; border-radius: 4px; white-space: nowrap; }
+
+  .section { max-width: 1100px; margin: 0 auto 5rem; padding: 0 2rem; position: relative; z-index: 1; animation: fadeIn .5s ease both; }
+  .section-header { display: flex; align-items: flex-start; gap: 1rem; margin-bottom: 2rem; padding-bottom: 1.25rem; border-bottom: 1px solid var(--border); }
+  .section-num { font-family: var(--mono); font-size: 11px; color: var(--accent); letter-spacing: 0.1em; text-transform: uppercase; margin-top: 6px; min-width: 70px; }
+  .section-title { font-family: var(--serif); font-size: 1.9rem; color: #fff; line-height: 1.2; margin-bottom: 4px; }
+  .section-sub { font-family: var(--mono); font-size: 12px; color: var(--text-dim); }
+
+  .part-label { max-width: 1100px; margin: 0 auto 2rem; padding: 0 2rem; position: relative; z-index: 1; }
+  .part-badge { display: inline-block; font-family: var(--mono); font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--text-dim); border-top: 2px solid var(--accent); padding-top: 8px; }
+  .part-badge strong { color: var(--accent); }
+
+  p { margin-bottom: 1rem; color: var(--text-muted); line-height: 1.75; }
+  p strong { color: var(--text); }
+
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 1.5rem; margin-bottom: 1.25rem; }
+  .card-title { font-family: var(--mono); font-size: 12px; font-weight: 600; color: var(--accent); text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 0.75rem; }
+  .card h3 { font-family: var(--sans); font-size: 1.05rem; color: var(--text); font-weight: 600; margin-bottom: 0.5rem; }
+
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 1.25rem; margin-bottom: 1.5rem; }
+  @media(max-width: 680px){ .two-col { grid-template-columns: 1fr; } }
+
+  .table-wrap { overflow-x: auto; margin: 1.5rem 0; }
+  table { width: 100%; border-collapse: collapse; }
+  thead th { font-family: var(--mono); font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-dim); padding: 10px 14px; text-align: left; background: var(--surface2); border-bottom: 1px solid var(--border); }
+  tbody td { padding: 11px 14px; border-bottom: 1px solid rgba(100,130,255,0.07); font-size: 13.5px; color: var(--text-muted); vertical-align: top; }
+  tbody tr:hover td { background: rgba(79,124,255,0.04); }
+  .tag { font-family: var(--mono); font-size: 11px; padding: 2px 9px; border-radius: 4px; background: rgba(79,124,255,0.12); color: var(--accent); border: 1px solid rgba(79,124,255,0.2); }
+  .tag.green { background: rgba(52,211,153,0.12); color: var(--accent3); border-color: rgba(52,211,153,0.2); }
+  .tag.amber { background: rgba(245,158,11,0.12); color: var(--accent4); border-color: rgba(245,158,11,0.2); }
+  .tag.red { background: rgba(248,113,113,0.12); color: var(--danger); border-color: rgba(248,113,113,0.2); }
+
+  .arch-block { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 1.5rem 2rem; font-family: var(--mono); font-size: 13px; color: var(--text-muted); line-height: 2.2; overflow-x: auto; }
+  .arch-block .node { color: var(--accent); font-weight: 600; }
+  .arch-block .comment { color: var(--text-dim); }
+  .arch-block .arrow { color: var(--accent2); }
+
+  .mockup-container { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; overflow: hidden; margin: 1.5rem 0; }
+  .mockup-topbar { background: var(--surface2); border-bottom: 1px solid var(--border); padding: 12px 20px; display: flex; align-items: center; justify-content: space-between; }
+  .mockup-title { font-family: var(--mono); font-size: 13px; color: var(--text); font-weight: 600; }
+  .badge-online { display: inline-flex; align-items: center; gap: 5px; font-family: var(--mono); font-size: 11px; color: var(--accent3); background: rgba(52,211,153,0.1); border: 1px solid rgba(52,211,153,0.25); padding: 3px 10px; border-radius: 20px; }
+  .badge-online::before { content:''; width:5px; height:5px; border-radius:50%; background:var(--accent3); animation: pulse 2s infinite; }
+
+  .stepper { display: flex; gap: 0; margin: 1rem 1.5rem; }
+  .step { flex: 1; text-align: center; padding: 10px 5px; font-family: var(--mono); font-size: 11px; color: var(--text-dim); border-bottom: 2px solid var(--border); cursor: pointer; transition: all .2s; }
+  .step.active { color: var(--accent); border-color: var(--accent); }
+  .step-num { display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 20px; border-radius: 50%; background: var(--surface2); border: 1px solid var(--border); font-size: 10px; margin-right: 5px; color: var(--text-dim); }
+  .step.active .step-num { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .step.done .step-num { background: var(--accent3); border-color: var(--accent3); color: #fff; }
+  .step.done { color: var(--accent3); border-color: var(--accent3); }
+
+  .mockup-body { padding: 1.5rem; display: grid; grid-template-columns: 1fr 1fr; gap: 1.25rem; }
+  @media(max-width:680px){ .mockup-body { grid-template-columns: 1fr; } }
+
+  .mock-panel { background: var(--bg); border: 1px solid var(--border); border-radius: 10px; padding: 1.25rem; }
+  .mock-label { font-family: var(--mono); font-size: 11px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 0.75rem; }
+  .mock-file-zone { border: 1.5px dashed var(--border); border-radius: 8px; padding: 1.25rem; text-align: center; margin-bottom: 1rem; }
+  .mock-file-name { font-family: var(--mono); font-size: 13px; color: var(--accent); display: block; margin-bottom: 3px; }
+  .mock-file-meta { font-size: 11px; color: var(--text-dim); }
+  .mock-drop-hint { font-size: 11px; color: var(--text-dim); margin-top: 8px; }
+  .progress-bar { height: 4px; background: var(--surface2); border-radius: 2px; overflow: hidden; margin-top: 8px; }
+  .progress-fill { height: 100%; border-radius: 2px; background: linear-gradient(90deg, var(--accent), var(--accent2)); }
+
+  textarea.mock-jd { width: 100%; min-height: 110px; background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; color: var(--text-muted); font-family: var(--mono); font-size: 12px; padding: 10px; resize: vertical; margin-bottom: 1rem; }
+  textarea.mock-jd:focus { outline: none; border-color: var(--accent); }
+
+  .token-row { display: flex; justify-content: space-between; align-items: center; font-family: var(--mono); font-size: 11px; color: var(--text-dim); margin-bottom: 6px; }
+  .token-row span { color: var(--accent); }
+
+  .radio-group { display: flex; flex-wrap: wrap; gap: 7px; margin-bottom: 1rem; }
+  .radio-opt { font-family: var(--mono); font-size: 11px; padding: 5px 12px; border-radius: 6px; border: 1px solid var(--border); color: var(--text-dim); cursor: pointer; transition: all .2s; }
+  .radio-opt.sel { background: rgba(79,124,255,0.12); border-color: var(--accent); color: var(--accent); }
+
+  .mock-btn { width: 100%; padding: 13px; background: var(--accent); color: #fff; font-family: var(--mono); font-size: 13px; font-weight: 600; border: none; border-radius: 8px; cursor: pointer; transition: all .2s; letter-spacing: 0.04em; display: flex; align-items: center; justify-content: center; gap: 8px; }
+  .mock-btn:hover { background: #6b93ff; transform: translateY(-1px); }
+
+  .output-tabs { display: flex; gap: 0; border-bottom: 1px solid var(--border); margin-bottom: 1rem; }
+  .out-tab { font-family: var(--mono); font-size: 11px; padding: 8px 14px; color: var(--text-dim); cursor: pointer; border-bottom: 2px solid transparent; transition: all .2s; }
+  .out-tab.active { color: var(--accent); border-color: var(--accent); }
+
+  .resume-preview { font-size: 12.5px; line-height: 1.65; }
+  .resume-preview h4 { color: #fff; font-size: 14px; margin-bottom: 2px; font-family: var(--sans); }
+  .resume-preview .rp-meta { font-family: var(--mono); font-size: 11px; color: var(--text-dim); margin-bottom: 1rem; }
+  .resume-preview .rp-section { margin-bottom: 1rem; }
+  .resume-preview .rp-sec-title { font-family: var(--mono); font-size: 10px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--accent); margin-bottom: 5px; }
+  .rp-role { font-weight: 600; color: var(--text); font-size: 13px; }
+  .rp-company { color: var(--text-muted); font-size: 12px; }
+  .rp-bullets { list-style: none; padding: 0; }
+  .rp-bullets li { color: var(--text-muted); font-size: 12px; padding-left: 14px; position: relative; margin-bottom: 3px; }
+  .rp-bullets li::before { content:'·'; position:absolute; left:0; color:var(--accent); }
+  .skill-pills { display: flex; flex-wrap: wrap; gap: 5px; }
+  .skill-pill { font-family: var(--mono); font-size: 10px; padding: 2px 9px; border-radius: 4px; background: rgba(79,124,255,0.1); color: var(--accent); border: 1px solid rgba(79,124,255,0.2); }
+
+  .metrics-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .metric-box { background: var(--surface2); border-radius: 8px; padding: 12px; text-align: center; }
+  .metric-val { font-family: var(--mono); font-size: 1.4rem; font-weight: 700; color: var(--accent3); display: block; }
+  .metric-lbl { font-size: 11px; color: var(--text-dim); }
+
+  .latency-row { font-family: var(--mono); font-size: 11px; color: var(--text-dim); border-top: 1px solid var(--border); margin-top: 10px; padding-top: 10px; display: flex; justify-content: space-between; }
+
+  .endpoint-list { display: flex; flex-direction: column; gap: 8px; margin: 1.5rem 0; }
+  .endpoint-row { display: flex; align-items: center; gap: 12px; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 11px 16px; font-family: var(--mono); font-size: 13px; }
+  .method { min-width: 46px; font-weight: 700; font-size: 11px; text-align: center; padding: 3px 7px; border-radius: 4px; }
+  .method.get { background: rgba(52,211,153,0.15); color: var(--accent3); }
+  .method.post { background: rgba(79,124,255,0.15); color: var(--accent); }
+  .endpoint-path { color: var(--text); }
+  .endpoint-desc { color: var(--text-dim); font-size: 11px; margin-left: auto; }
+
+  .wf-step { flex: 1; min-width: 160px; background: var(--surface); border: 1px solid var(--border); border-right: none; padding: 1.25rem; }
+  .wf-step:last-child { border-right: 1px solid var(--border); }
+  .wf-step h4 { font-size: 13px; color: var(--text); margin-bottom: 4px; font-weight: 600; }
+  .wf-step p { font-size: 12px; color: var(--text-dim); margin: 0; line-height: 1.5; }
+
+  .important-note { background: rgba(167,139,250,0.08); border: 1px solid rgba(167,139,250,0.25); border-left: 3px solid var(--accent2); border-radius: 0 10px 10px 0; padding: 1.25rem 1.5rem; margin: 1.5rem 0; }
+  .important-note .note-label { font-family: var(--mono); font-size: 11px; font-weight: 700; color: var(--accent2); text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 0.5rem; }
+  .important-note p { color: var(--text-muted); margin: 0; font-size: 13.5px; }
+
+  blockquote { border-left: 3px solid var(--accent); padding: 1rem 1.5rem; margin: 1.5rem 0; background: rgba(79,124,255,0.05); border-radius: 0 10px 10px 0; font-style: italic; color: var(--text-muted); }
+
+  .monitor-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px; margin: 1.5rem 0; }
+  .monitor-card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 1.1rem; }
+  .monitor-card .m-icon { font-size: 1.3rem; margin-bottom: 6px; }
+  .monitor-card h4 { font-size: 13px; color: var(--text); font-weight: 600; margin-bottom: 4px; }
+  .monitor-card p { font-size: 12px; color: var(--text-dim); margin: 0; }
+
+  .maint-list { list-style: none; padding: 0; margin: 1rem 0; }
+  .maint-list li { display: flex; gap: 12px; align-items: flex-start; padding: 12px 0; border-bottom: 1px solid var(--border); font-size: 13.5px; color: var(--text-muted); }
+  .maint-list li:last-child { border-bottom: none; }
+  .maint-check { min-width: 20px; height: 20px; border-radius: 50%; background: rgba(52,211,153,0.15); border: 1px solid rgba(52,211,153,0.3); display: flex; align-items: center; justify-content: center; font-size: 10px; color: var(--accent3); margin-top: 2px; }
+
+  .team-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; margin-top: 1.5rem; }
+  .team-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 1.25rem; transition: border-color .2s; }
+  .team-card:hover { border-color: var(--accent); }
+  .team-avatar { width: 44px; height: 44px; border-radius: 50%; background: linear-gradient(135deg, var(--accent), var(--accent2)); display: flex; align-items: center; justify-content: center; font-family: var(--mono); font-weight: 700; font-size: 14px; color: #fff; margin-bottom: 10px; }
+  .team-name { font-size: 14px; color: var(--text); font-weight: 600; margin-bottom: 2px; }
+  .team-role { font-family: var(--mono); font-size: 11px; color: var(--accent); margin-bottom: 8px; }
+  .team-desc { font-size: 12px; color: var(--text-dim); line-height: 1.5; }
+
+  footer { text-align: center; padding: 3rem 2rem; border-top: 1px solid var(--border); font-family: var(--mono); font-size: 11px; color: var(--text-dim); position: relative; z-index: 1; }
+  footer span { color: var(--accent); }
+
+  .fade-in { animation: fadeIn .6s ease both; }
+  @keyframes fadeIn { from{opacity:0;transform:translateY(12px)} to{opacity:1;transform:none} }
+
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: var(--bg); }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+  /* Dashboard styles */
+  .mon-grid-dash{display:grid;grid-template-columns:repeat(4,1fr);gap:0;border-bottom:1px solid var(--border)}
+  .mon-stat-dash{padding:14px 16px;border-right:1px solid var(--border);text-align:center;background:var(--surface)}
+  .mon-stat-dash:last-child{border-right:none}
+  .mon-val-dash{font-family:var(--mono);font-size:24px;font-weight:700;line-height:1;margin-bottom:4px}
+  .mon-lbl-dash{font-size:11px;color:var(--text-dim)}
+  .mon-trend-dash{font-size:11px;margin-top:3px;font-weight:500}
+  .dtgood{color:#34d399}.dtwarn{color:#f59e0b}.dtbad{color:#f87171}
+  .chart-wrap-dash{padding:1rem 1.25rem;border-bottom:1px solid var(--border);background:var(--surface)}
+  .chart-title-dash{font-family:var(--mono);font-size:11px;font-weight:600;color:var(--text-muted);margin-bottom:10px;display:flex;justify-content:space-between}
+  .alert-panel-dash{padding:1rem 1.25rem;border-bottom:1px solid var(--border);background:var(--surface)}
+  .alert-item-dash{display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:6px;margin-bottom:6px;font-size:12px;font-family:var(--mono)}
+  .alert-item-dash:last-child{margin-bottom:0}
+  .adot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+  .aok{background:rgba(52,211,153,0.1);border:1px solid rgba(52,211,153,0.25);color:#34d399}
+  .aok .adot{background:#34d399}
+  .awarn{background:rgba(245,158,11,0.1);border:1px solid rgba(245,158,11,0.25);color:#f59e0b}
+  .awarn .adot{background:#f59e0b}
+  .aerr{background:rgba(248,113,113,0.1);border:1px solid rgba(248,113,113,0.25);color:#f87171;animation:alertblink2 1.5s infinite}
+  .aerr .adot{background:#f87171}
+  @keyframes alertblink2{0%,100%{background:rgba(248,113,113,0.1)}50%{background:rgba(248,113,113,0.18)}}
+  .drift-panel-dash{padding:1rem 1.25rem;border-bottom:1px solid var(--border);background:var(--surface)}
+  .drift-row-dash{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+  .drift-label-dash{font-family:var(--mono);font-size:11px;color:var(--text-muted);min-width:190px;flex-shrink:0}
+  .drift-track-dash{flex:1;height:10px;background:var(--surface2);border-radius:5px;overflow:hidden}
+  .drift-fill-dash{height:100%;border-radius:5px;transition:width 0.6s ease}
+  .drift-val-dash{font-family:var(--mono);font-size:11px;min-width:90px;text-align:right;font-weight:500}
+  .retrain-panel-dash{padding:1rem 1.25rem;background:var(--surface)}
+  .trigger-grid-dash{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:12px}
+  .trigger-dash{border-radius:8px;padding:10px 12px;border:1px solid var(--border);background:var(--surface2)}
+  .trigger-name-dash{font-family:var(--mono);font-size:10px;font-weight:600;color:var(--text-muted);margin-bottom:4px;text-transform:uppercase;letter-spacing:0.06em}
+  .trigger-status-dash{font-family:var(--mono);font-size:11px;margin-bottom:6px}
+  .trigger-bar-wrap-dash{height:6px;background:var(--bg);border-radius:3px;overflow:hidden}
+  .trigger-bar-dash{height:100%;border-radius:3px;transition:width 0.6s}
+  .trigger-label-dash{font-family:var(--mono);font-size:10px;color:var(--text-dim);margin-top:3px;display:flex;justify-content:space-between}
+  .btn-row-dash{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+  .mon-btn-dash{padding:8px 14px;border-radius:6px;font-family:var(--mono);font-size:11px;font-weight:600;cursor:pointer;border:1px solid var(--border);background:var(--surface2);color:var(--text-muted);transition:all 0.15s;letter-spacing:0.04em}
+  .mon-btn-dash:hover{border-color:var(--accent);color:var(--accent)}
+  .mon-btn-dash.danger{background:rgba(248,113,113,0.1);color:#f87171;border-color:rgba(248,113,113,0.3)}
+  .mon-btn-dash.danger:hover{background:rgba(248,113,113,0.2)}
+  .sim-label-dash{font-family:var(--mono);font-size:11px;color:var(--text-dim);margin-left:auto}
+  @media(max-width:700px){.mon-grid-dash,.trigger-grid-dash{grid-template-columns:1fr 1fr}}
+</style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+</head>
+<body>
+
+<!-- HEADER -->
+<header>
+  <div class="header-inner">
+    <div class="header-badge">DTSC 5082 · <span>Group Project</span> · Model Deployment</div>
+    <nav class="header-nav">
+      <a href="#production">Production</a>
+      <a href="#api">API Mockup</a>
+      <a href="#monitoring">Monitoring</a>
+      <a href="#team">Team</a>
+    </nav>
+    <div class="status-dot">Model online</div>
+  </div>
+</header>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="course-label">DTSC 5082 · Seminar in Research &amp; Research Methodology · Group Project</div>
+  <h1>Model Deployment<br/><em>Resume Optimization SLM</em></h1>
+  <p class="subtitle">
+    Low-Cost Resume Optimization via Distillation of Large Language Model Behavior into a Fine-Tuned Small Language Model (SLM)
+    &nbsp;·&nbsp; Professor: Clifford K. Whitworth
+  </p>
+  <div class="stats-bar fade-in">
+    <div class="stat-item"><span class="stat-val">Qwen3-4B</span><span class="stat-lbl">Base Model</span></div>
+    <div class="stat-item"><span class="stat-val">QLoRA</span><span class="stat-lbl">Fine-tuning method</span></div>
+    <div class="stat-item"><span class="stat-val">1,530</span><span class="stat-lbl">Training samples</span></div>
+    <div class="stat-item"><span class="stat-val">1,876</span><span class="stat-lbl">Mean resume words</span></div>
+    <div class="stat-item"><span class="stat-val">94%+</span><span class="stat-lbl">Cost reduction</span></div>
+  </div>
+</section>
+
+<!-- TOC -->
+<div class="toc-section">
+  <div class="toc-grid">
+    <a class="toc-item" href="#production">
+      <span class="toc-num">01</span>
+      <div class="toc-text"><strong>Production Readiness</strong>Real-time vs. Batch Inference</div>
+      <span class="toc-tag">Part 1</span>
+    </a>
+    <a class="toc-item" href="#api">
+      <span class="toc-num">02</span>
+      <div class="toc-text"><strong>API Interface Mockup</strong>Conceptual Workflow</div>
+      <span class="toc-tag">Part 1</span>
+    </a>
+    <a class="toc-item" href="#monitoring">
+      <span class="toc-num">03</span>
+      <div class="toc-text"><strong>Monitoring &amp; Maintenance</strong>Operational Metrics</div>
+      <span class="toc-tag">Part 1</span>
+    </a>
+    <a class="toc-item" href="#team">
+      <span class="toc-num">04</span>
+      <div class="toc-text"><strong>Team Contributions</strong>Individual Responsibilities</div>
+      <span class="toc-tag">Credits</span>
+    </a>
+  </div>
+</div>
+
+<!-- PART LABEL -->
+<div class="part-label" id="production">
+  <div class="part-badge"><strong>Part 1</strong> — Model Deployment</div>
+</div>
+
+<!-- SECTION 01 — Production Readiness -->
+<section class="section">
+  <div class="section-header">
+    <div class="section-num">Section 01</div>
+    <div class="section-title-wrap">
+      <div class="section-title">Production Readiness</div>
+      <div class="section-sub">Real-Time vs. Batch Inference</div>
+    </div>
+  </div>
+
+  <div class="important-note">
+    <div class="note-label">⚠ Architecture Constraint</div>
+    <p>Our trained artifact is a <strong>LoRA adapter</strong>, not a completely standalone model. To generate outputs in production, the system must load both the base <code style="color:var(--accent2)">Qwen/Qwen3-4B-Instruct-2507</code> model and the fine-tuned adapter together at runtime. That setup requires suitable hardware, sufficient storage, and a model-serving environment capable of handling the merged inference path. <strong>We will only do model deployment.</strong></p>
+  </div>
+
+  <p>This project is production-ready in the form of a backend resume-optimization API. In a real-world application, a user would submit a resume together with a target job description, and the service would return a tailored resume in structured JSON format. The project already includes this deployment path through a FastAPI backend with endpoints for health monitoring, schema access, file-based inference, and text-based inference.</p>
+
+  <p>The most appropriate production mode for this project is <strong>real-time inference</strong>. Resume optimization is typically an interactive task in which a user wants one tailored result for one specific job posting, so the main design is request-response based. A secondary batch mode could also be used in future scenarios such as running one resume against multiple job postings, generating offline benchmark outputs, or performing larger-scale testing.</p>
+
+  <div class="two-col">
+    <div class="card">
+      <div class="card-title">🔴 Real-Time Inference — Primary Mode</div>
+      <h3>User-Facing Interactive Requests</h3>
+      <p>When a candidate submits their resume and a job description, they expect a result promptly. The system handles this through synchronous inference on the self-hosted Qwen3-4B model. At 4-bit quantization, the model requires only 2–3 GB of VRAM, meaning a single A10G or RTX 4090 GPU can serve multiple concurrent users simultaneously — a critical requirement for SaaS scalability.</p>
+    </div>
+    <div class="card">
+      <div class="card-title">🔵 Batch Inference — Secondary Mode</div>
+      <h3>Enterprise &amp; Bulk Processing</h3>
+      <p>Batch mode enables an enterprise recruiting use case: a firm wants to optimize many candidate resumes against a single job description overnight. All jobs queue to the same self-hosted GPU, process sequentially during off-hours, and return results by morning — at a marginal infrastructure cost near zero beyond the existing GPU rental.</p>
+    </div>
+  </div>
+
+  <p>The recommended deployment design is:</p>
+  <ul style="margin:0.5rem 0 1.25rem 1.25rem;color:var(--text-muted);font-size:13.5px;line-height:2;">
+    <li><strong style="color:var(--text)">Primary mode:</strong> Real-time API inference for normal users</li>
+    <li><strong style="color:var(--text)">Secondary mode:</strong> Batch processing for large-scale evaluation or bulk usage</li>
+  </ul>
+
+  <p>The backend is designed to be run on suitable hardware where the base Qwen model and the project's fine-tuned LoRA adapter can be loaded together. The API layer handles input validation, resume parsing, optional job-description scraping, inference, and JSON response formatting.</p>
+
+  <h3 style="font-family:var(--mono);font-size:13px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.08em;margin:1.5rem 0 0.75rem;">Cost Comparison — API vs. Self-Hosted</h3>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr><th>Deployment Mode</th><th>Monthly Cost</th><th>Latency</th><th>Control</th><th>Verdict</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>GPT-4 API (10K tokens/req)</td>
+          <td style="color:var(--danger)">~$8,000/month</td>
+          <td>3–8s</td>
+          <td>None — external dependency</td>
+          <td><span class="tag red">Not viable at scale</span></td>
+        </tr>
+        <tr>
+          <td>Self-hosted Qwen3-4B (A10G GPU)</td>
+          <td style="color:var(--accent3)">~$300–500/month</td>
+          <td>15–40s streamed</td>
+          <td>Full — data stays on-premise</td>
+          <td><span class="tag green">Target architecture</span></td>
+        </tr>
+        <tr>
+          <td>Self-hosted Qwen3-4B (RTX 4090)</td>
+          <td style="color:var(--accent3)">~$150–250/month</td>
+          <td>20–50s streamed</td>
+          <td>Full</td>
+          <td><span class="tag amber">Budget early-stage option</span></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3 style="font-family:var(--mono);font-size:13px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.08em;margin:1.5rem 0 0.75rem;">Production Architecture Stack</h3>
+  <div class="arch-block">
+    <span class="node">User Browser</span><br/>
+    &nbsp;&nbsp;<span class="arrow">↓</span><br/>
+    <span class="node">FastAPI Backend</span><br/>
+    &nbsp;&nbsp;<span class="arrow">├──</span> <span class="comment">Resume Parser (PDF/DOCX → text) ← OCR pipeline</span><br/>
+    &nbsp;&nbsp;<span class="arrow">├──</span> <span class="comment">Text Cleaner (non-ASCII removal, whitespace normalization)</span><br/>
+    &nbsp;&nbsp;<span class="arrow">├──</span> <span class="comment">Prompt Builder (resume + JD → chat-format JSONL)</span><br/>
+    &nbsp;&nbsp;<span class="arrow">↓</span><br/>
+    <span class="node">Inference Server (vLLM / TGI)</span><br/>
+    &nbsp;&nbsp;<span class="arrow">├──</span> <span class="comment">Qwen3-4B-Instruct-2507 base + QLoRA LoRA adapter (4-bit, rank r=16)</span><br/>
+    &nbsp;&nbsp;<span class="arrow">├──</span> <span class="comment">Streaming token output</span><br/>
+    &nbsp;&nbsp;<span class="arrow">↓</span><br/>
+    <span class="node">JSON Schema Validator</span><br/>
+    &nbsp;&nbsp;<span class="arrow">├──</span> <span class="comment">Required field presence check</span><br/>
+    &nbsp;&nbsp;<span class="arrow">├──</span> <span class="comment">Hallucination detection (cross-reference vs original resume)</span><br/>
+    &nbsp;&nbsp;<span class="arrow">↓</span><br/>
+    <span class="node">Response → User</span> <span class="comment">(streamed tailored resume + quality metrics)</span>
+  </div>
+</section>
+
+<!-- SECTION 02 — API Mockup -->
+<section class="section" id="api">
+  <div class="section-header">
+    <div class="section-num">Section 02</div>
+    <div class="section-title-wrap">
+      <div class="section-title">API Interface Mockup</div>
+      <div class="section-sub">Conceptual Workflow &amp; Interactive Demo</div>
+    </div>
+  </div>
+
+  <p>The following mockup shows exactly how a candidate interacts with the system — from uploading their resume to receiving a structured, validated tailored resume. Every element maps directly to a component of the actual pipeline built in the project's API backend.</p>
+
+  <h3 style="font-family:var(--mono);font-size:12px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.08em;margin:0 0 0.75rem;">Available Live API Endpoints</h3>
+  <div class="endpoint-list">
+    <div class="endpoint-row"><span class="method get">GET</span><span class="endpoint-path">/</span><span class="endpoint-desc">Root health check</span></div>
+    <div class="endpoint-row"><span class="method get">GET</span><span class="endpoint-path">/health</span><span class="endpoint-desc">Model &amp; hardware status</span></div>
+    <div class="endpoint-row"><span class="method get">GET</span><span class="endpoint-path">/schema</span><span class="endpoint-desc">JSON output schema definition</span></div>
+    <div class="endpoint-row"><span class="method post">POST</span><span class="endpoint-path">/optimize</span><span class="endpoint-desc">File-based resume inference</span></div>
+    <div class="endpoint-row"><span class="method post">POST</span><span class="endpoint-path">/optimize/text</span><span class="endpoint-desc">Text-based resume inference</span></div>
+  </div>
+
+  <!-- ═══ LIVE RESUME AI TOOL ═══ -->
+  <div class="mockup-container" id="resume-ai-tool">
+    <div class="mockup-topbar">
+      <div class="mockup-title">ResumeAI — Live Optimization Tool &nbsp;<span style="font-size:11px;color:var(--text-dim);font-weight:400">Client-side · No API required · Adaptive parsing</span></div>
+      <div class="mockup-status"><span class="badge-online">Tool ready</span></div>
+    </div>
+    <div class="stepper" id="ai-stepper">
+      <div class="step active" id="step-1"><span class="step-num">1</span>Upload resume</div>
+      <div class="step" id="step-2"><span class="step-num">2</span>Job description</div>
+      <div class="step" id="step-3"><span class="step-num">3</span>Optimize</div>
+      <div class="step" id="step-4"><span class="step-num">4</span>Download results</div>
+    </div>
+    <div class="mockup-body">
+      <!-- ═══ Left: Input Panel ═══ -->
+      <div>
+        <!-- File upload panel -->
+        <div class="mock-panel" style="margin-bottom:1rem;">
+          <div class="mock-label">Resume Upload</div>
+          <div class="mock-file-zone" id="drop-zone" style="cursor:pointer;transition:all .2s;position:relative;">
+            <input type="file" id="resume-file-input" accept=".pdf,.docx,.doc,.txt" style="position:absolute;inset:0;opacity:0;cursor:pointer;z-index:2;" />
+            <div id="upload-placeholder">
+              <div style="font-size:2rem;margin-bottom:6px;opacity:0.5;">📄</div>
+              <span class="mock-file-name" style="color:var(--accent);">Click or drag to upload</span>
+              <span class="mock-file-meta">Supported: PDF, DOCX, TXT</span>
+              <div class="mock-drop-hint" style="margin-top:8px;">Your file stays local — no data sent to any server</div>
+            </div>
+            <div id="upload-success" style="display:none;">
+              <span class="mock-file-name" id="uploaded-file-name" style="color:var(--accent3);">—</span>
+              <span class="mock-file-meta" id="uploaded-file-meta">—</span>
+              <div class="progress-bar" style="margin-top:10px;"><div class="progress-fill" id="upload-progress" style="width:0%;transition:width .4s ease;"></div></div>
+            </div>
+          </div>
+          <div class="token-row" style="margin-top:10px;">Resume words <span id="resume-word-count">0</span></div>
+          <div class="token-row">Characters <span id="resume-char-count">0</span></div>
+          <div style="margin-top:8px;">
+            <button class="mock-btn" id="clear-resume-btn" style="display:none;background:transparent;border:1px solid var(--border);color:var(--text-dim);font-size:11px;padding:6px 12px;" onclick="clearResume()">✕ Clear resume</button>
+          </div>
+        </div>
+
+        <!-- Extracted text preview -->
+        <div class="mock-panel" id="extracted-text-panel" style="margin-bottom:1rem;display:none;">
+          <div class="mock-label" style="display:flex;justify-content:space-between;align-items:center;">
+            Extracted Text
+            <button onclick="toggleExtractedText()" style="background:none;border:1px solid var(--border);color:var(--text-dim);font-family:var(--mono);font-size:10px;padding:2px 8px;border-radius:4px;cursor:pointer;" id="toggle-extract-btn">show</button>
+          </div>
+          <div id="extracted-text-wrap" style="display:none;">
+            <textarea id="extracted-text" class="mock-jd" style="min-height:150px;font-size:11px;" readonly></textarea>
+          </div>
+        </div>
+
+        <!-- Job description panel -->
+        <div class="mock-panel" style="margin-bottom:1rem;">
+          <div class="mock-label">Job Description <span style="font-size:10px;color:var(--text-dim);">(paste target JD for optimization)</span></div>
+          <textarea class="mock-jd" id="jd-input" placeholder="Paste the target job description here...&#10;&#10;Example: Senior Software Engineer — We are seeking a candidate with experience in Python, React, cloud infrastructure, and machine learning pipelines..." oninput="updateJDTokens()"></textarea>
+          <div class="token-row">JD words <span id="jd-word-count">0</span></div>
+        </div>
+
+        <!-- Optimize button -->
+        <div class="mock-panel">
+          <div class="mock-label" style="margin-bottom:8px;">Output Options</div>
+          <div class="radio-group" id="output-mode-group">
+            <div class="radio-opt sel" data-value="json" onclick="selectRadio(this)">Structured JSON</div>
+            <div class="radio-opt" data-value="text" onclick="selectRadio(this)">Plain text</div>
+          </div>
+          <button class="mock-btn" id="optimize-btn" onclick="optimizeResume()" disabled style="opacity:0.5;">
+            <span id="btn-text">Upload a resume to begin →</span>
+          </button>
+          <div id="optimize-status" style="font-family:var(--mono);font-size:11px;color:var(--text-dim);margin-top:8px;text-align:center;"></div>
+        </div>
+      </div>
+
+      <!-- ═══ Right: Output Panel ═══ -->
+      <div>
+        <div class="mock-panel" style="height:100%;min-height:400px;">
+          <div class="output-tabs">
+            <div class="out-tab active" onclick="showTab('preview',this)">Resume preview</div>
+            <div class="out-tab" onclick="showTab('json',this)">JSON output</div>
+            <a href="https://techie03.github.io/XAI-Integration-and-Deployment/resume_json_schema.html" target="_blank">
+              <div class="out-tab">JSON schema ↗</div>
+            </a>
+            <div class="out-tab" onclick="showTab('metrics',this)">Metrics</div>
+          </div>
+
+          <!-- Preview tab -->
+          <div id="tab-preview" class="resume-preview">
+            <div id="preview-placeholder" style="text-align:center;padding:3rem 1rem;color:var(--text-dim);">
+              <div style="font-size:2.5rem;margin-bottom:10px;opacity:0.3;">🧠</div>
+              <div style="font-family:var(--mono);font-size:12px;">Upload a resume and provide a job description</div>
+              <div style="font-size:11px;margin-top:4px;">The optimized resume will appear here</div>
+            </div>
+            <div id="preview-content" style="display:none;"></div>
+          </div>
+
+          <!-- JSON tab -->
+          <div id="tab-json" style="display:none;">
+            <div id="json-placeholder" style="text-align:center;padding:3rem 1rem;color:var(--text-dim);">
+              <div style="font-family:var(--mono);font-size:12px;">JSON output will appear after optimization</div>
+            </div>
+            <div id="json-content" style="display:none;">
+              <div style="display:flex;justify-content:flex-end;gap:6px;margin-bottom:8px;">
+                <button onclick="copyJSON()" style="background:none;border:1px solid var(--border);color:var(--text-dim);font-family:var(--mono);font-size:10px;padding:3px 10px;border-radius:4px;cursor:pointer;" id="copy-json-btn">⎘ Copy JSON</button>
+                <button onclick="downloadJSON()" style="background:none;border:1px solid var(--border);color:var(--text-dim);font-family:var(--mono);font-size:10px;padding:3px 10px;border-radius:4px;cursor:pointer;">↓ Download JSON</button>
+              </div>
+              <pre id="json-output" style="font-family:var(--mono);font-size:11px;color:var(--text-muted);line-height:1.8;overflow-x:auto;max-height:500px;overflow-y:auto;"></pre>
+              <div id="json-validation" style="font-family:var(--mono);font-size:11px;margin-top:10px;display:flex;gap:8px;align-items:center;"></div>
+            </div>
+          </div>
+
+          <!-- Metrics tab -->
+          <div id="tab-metrics" style="display:none;">
+            <div id="metrics-placeholder" style="text-align:center;padding:3rem 1rem;color:var(--text-dim);">
+              <div style="font-family:var(--mono);font-size:12px;">Metrics will appear after optimization</div>
+            </div>
+            <div id="metrics-content" style="display:none;">
+              <div class="metrics-grid">
+                <div class="metric-box"><span class="metric-val" id="m-schema">—</span><span class="metric-lbl">Schema validity</span></div>
+                <div class="metric-box"><span class="metric-val" id="m-similarity">—</span><span class="metric-lbl">JD keyword match</span></div>
+                <div class="metric-box"><span class="metric-val" id="m-skills">—</span><span class="metric-lbl">Skills extracted</span></div>
+                <div class="metric-box"><span class="metric-val" id="m-sections">—</span><span class="metric-lbl">Sections found</span></div>
+              </div>
+              <div class="latency-row">
+                <span>Processing: <span style="color:var(--accent)" id="m-latency">—</span></span>
+                <span>Words: <span style="color:var(--accent)" id="m-words">—</span></span>
+                <span>Cost: <span style="color:var(--accent3)">$0.00 (local)</span></span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Download buttons -->
+          <div id="download-panel" style="margin-top:1rem;border-top:1px solid var(--border);padding-top:1rem;display:none;">
+            <div style="font-family:var(--mono);font-size:10px;color:var(--text-dim);margin-bottom:8px;">Export optimized resume</div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;">
+              <button class="mock-btn" onclick="downloadPDF()" style="flex:1;background:var(--accent);font-size:12px;padding:10px;">↓ Download PDF</button>
+              <button class="mock-btn" onclick="downloadJSON()" style="flex:1;background:var(--accent2);font-size:12px;padding:10px;">↓ Download JSON</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <h3 style="font-family:var(--mono);font-size:12px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.08em;margin:2rem 0 0.75rem;">Conceptual Workflow — How Data Moves Through the System</h3>
+  <div style="display:flex;flex-wrap:wrap;gap:0;border:1px solid var(--border);border-radius:12px;overflow:hidden;margin-bottom:1.5rem;">
+    <div class="wf-step" style="border-radius:12px 0 0 12px;">
+      <div style="font-family:var(--mono);font-size:10px;font-weight:700;color:var(--accent);background:rgba(79,124,255,0.1);border:1px solid rgba(79,124,255,0.2);width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;margin-bottom:8px;">1</div>
+      <h4>User Input</h4>
+      <p>Upload resume (PDF/DOCX). Paste job description.</p>
+    </div>
+    <div class="wf-step">
+      <div style="font-family:var(--mono);font-size:10px;font-weight:700;color:var(--accent);background:rgba(79,124,255,0.1);border:1px solid rgba(79,124,255,0.2);width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;margin-bottom:8px;">2</div>
+      <h4>Parse &amp; Build Prompt</h4>
+      <p>OCR extraction. Chat-format prompt construction.</p>
+    </div>
+    <div class="wf-step">
+      <div style="font-family:var(--mono);font-size:10px;font-weight:700;color:var(--accent);background:rgba(79,124,255,0.1);border:1px solid rgba(79,124,255,0.2);width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;margin-bottom:8px;">3</div>
+      <h4>SLM Inference</h4>
+      <p>Qwen3-4B + LoRA adapter (4-bit) generates structured JSON.</p>
+    </div>
+    <div class="wf-step">
+      <div style="font-family:var(--mono);font-size:10px;font-weight:700;color:var(--accent);background:rgba(79,124,255,0.1);border:1px solid rgba(79,124,255,0.2);width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;margin-bottom:8px;">4</div>
+      <h4>Validate &amp; Score</h4>
+      <p>Schema check, hallucination detection, quality metrics.</p>
+    </div>
+    <div class="wf-step" style="border-radius:0 12px 12px 0;border-right:1px solid var(--border);">
+      <div style="font-family:var(--mono);font-size:10px;font-weight:700;color:var(--accent3);background:rgba(52,211,153,0.1);border:1px solid rgba(52,211,153,0.2);width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;margin-bottom:8px;">5</div>
+      <h4>Return Result</h4>
+      <p>Streamed resume preview + JSON + quality metrics.</p>
+    </div>
+  </div>
+
+  <p>The project also includes saved deployment artifacts that demonstrate the API workflow: the uploaded input file and the generated JSON response show that the backend stores both uploaded content and generated tailored-resume outputs — useful in a production-like environment for traceability, debugging, and quality review.</p>
+</section>
+
+<!-- SECTION 03 — Monitoring -->
+<section class="section" id="monitoring">
+  <div class="section-header">
+    <div class="section-num">Section 03</div>
+    <div class="section-title-wrap">
+      <div class="section-title">Monitoring &amp; Maintenance</div>
+      <div class="section-sub">Model Drift, Performance Tracking &amp; Retraining Strategy</div>
+    </div>
+  </div>
+
+  <p>A deployed model must be monitored continuously to ensure that it remains reliable and does not become stale as inputs evolve over time. A resume optimizer faces a particularly aggressive form of model drift because <strong style="color:var(--text)">the job market vocabulary changes constantly</strong>. Skills like "prompt engineering" and "RAG pipelines" barely existed as resume keywords two years ago. A model trained on 1,530 pairs from 2024–2025 will gradually produce outputs that feel dated — missing emerging skills, over-representing obsolete ones, and misaligning with how job descriptions are written today.</p>
+
+  <div class="two-col">
+    <div style="background:rgba(248,113,113,0.08);border:1px solid rgba(248,113,113,0.25);border-radius:12px;padding:1.25rem;">
+      <div style="font-family:var(--mono);font-size:12px;font-weight:700;color:var(--danger);margin-bottom:0.6rem;">⚠ Data Drift</div>
+      <p style="font-size:13px;margin:0;">Incoming resumes and job descriptions start looking different from your training distribution. New technology terms enter job postings; shared token ratio calculations become unreliable because the vocabulary the model learned to match is no longer representative of the current market.</p>
+    </div>
+    <div style="background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.25);border-radius:12px;padding:1.25rem;">
+      <div style="font-family:var(--mono);font-size:12px;font-weight:700;color:var(--accent4);margin-bottom:0.6rem;">⚠ Concept Drift</div>
+      <p style="font-size:13px;margin:0;">The relationship between inputs and desired outputs changes even if inputs look similar. A "Senior Data Scientist" posting in 2025 emphasizes LLMs and vector databases; in 2023 it emphasized Spark and Hadoop. The model learned 2024 patterns and anchors outputs to those — not current market reality.</p>
+    </div>
+  </div>
+  <div style="background:rgba(245,158,11,0.06);border:1px solid rgba(245,158,11,0.2);border-radius:12px;padding:1.25rem;margin-top:1rem;margin-bottom:1.5rem;">
+    <div style="font-family:var(--mono);font-size:12px;font-weight:700;color:var(--accent4);margin-bottom:0.6rem;">⭐ Output Quality Drift — The Most Dangerous Type</div>
+    <p style="font-size:13px;margin:0;">Schema validity and hallucination rates remain stable, but semantic alignment scores quietly decline because the model's vocabulary no longer matches current job market language. This is invisible to structural validators — the JSON is valid, but the content is stale. Without active monitoring of semantic metrics, this drift goes undetected until users start complaining.</p>
+  </div>
+
+  <h3 style="font-family:var(--mono);font-size:12px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.08em;margin:0 0 0.75rem;">Key Operational Metrics</h3>
+  <div class="monitor-grid">
+    <div class="monitor-card"><div class="m-icon">⏱</div><h4>Request Latency</h4><p>End-to-end response time per API call. Target: under 50s streamed for real-time mode.</p></div>
+    <div class="monitor-card"><div class="m-icon">❌</div><h4>API Failure Rate</h4><p>Percentage of requests returning 4xx/5xx errors. Alert threshold: &gt;2%.</p></div>
+    <div class="monitor-card"><div class="m-icon">📋</div><h4>JSON Parse Success Rate</h4><p>Proportion of outputs successfully parsed against the defined schema structure.</p></div>
+    <div class="monitor-card"><div class="m-icon">✅</div><h4>Schema Validity Rate</h4><p>Whether required schema fields are consistently present in every generated output.</p></div>
+    <div class="monitor-card"><div class="m-icon">💻</div><h4>Model &amp; Hardware Status</h4><p>GPU utilization, VRAM usage, and adapter loading status from the <code style="font-size:10px;color:var(--accent)">/health</code> endpoint.</p></div>
+    <div class="monitor-card"><div class="m-icon">🧠</div><h4>Hallucination Rate</h4><p>Cross-referencing generated bullets and skills against the original source resume.</p></div>
+  </div>
+
+  <!-- Live Monitoring Dashboard -->
+  <div style="margin:2rem 0 1.5rem;border-radius:16px;overflow:hidden;border:1px solid var(--border);">
+    <div style="background:linear-gradient(135deg,#1a2754,#0c1830);padding:14px 20px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border);">
+      <div style="display:flex;align-items:center;gap:10px;">
+        <span style="font-size:14px;">⭐</span>
+        <span style="color:#e2e8f0;font-family:var(--mono);font-size:13px;font-weight:600;">Live Monitoring Dashboard — Qwen 4B SLM</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <div style="width:8px;height:8px;border-radius:50%;background:#34d399;animation:pulse 2s infinite;" id="dash-dot"></div>
+        <span style="color:#94a3b8;font-family:var(--mono);font-size:11px;" id="dash-status">All systems nominal</span>
+      </div>
+    </div>
+    <!-- KPI row -->
+    <div class="mon-grid-dash">
+      <div class="mon-stat-dash">
+        <div class="mon-val-dash dtgood" id="d-kpi-schema">97.2%</div>
+        <div class="mon-lbl-dash">Schema validity (7-day avg)</div>
+        <div class="mon-trend-dash dtgood" id="d-kpi-schema-trend">↑ above 93% threshold</div>
+      </div>
+      <div class="mon-stat-dash">
+        <div class="mon-val-dash" style="color:var(--accent)" id="d-kpi-skills">29.4</div>
+        <div class="mon-lbl-dash">Mean skill items (7-day avg)</div>
+        <div class="mon-trend-dash dtgood" id="d-kpi-skills-trend">≈ baseline 29.95</div>
+      </div>
+      <div class="mon-stat-dash">
+        <div class="mon-val-dash" style="color:var(--accent)" id="d-kpi-ratio">0.154</div>
+        <div class="mon-lbl-dash">Mean shared token ratio</div>
+        <div class="mon-trend-dash dtgood" id="d-kpi-ratio-trend">≈ training baseline 0.157</div>
+      </div>
+      <div class="mon-stat-dash">
+        <div class="mon-val-dash dtgood" id="d-kpi-halluc">0.4%</div>
+        <div class="mon-lbl-dash">Hallucination rate</div>
+        <div class="mon-trend-dash dtgood" id="d-kpi-halluc-trend">↓ below 2% threshold</div>
+      </div>
+    </div>
+    <!-- Charts -->
+    <div class="chart-wrap-dash">
+      <div class="chart-title-dash"><span>Schema validity rate — 30-day rolling (alert threshold: 93%)</span><span>Baseline: 97.2%</span></div>
+      <canvas id="d-schema-chart" style="width:100%;height:110px;display:block;"></canvas>
+    </div>
+    <div class="chart-wrap-dash">
+      <div class="chart-title-dash"><span>Mean skill items generated — 30-day rolling (alert threshold: &lt;24)</span><span>Baseline: 29.95</span></div>
+      <canvas id="d-skills-chart" style="width:100%;height:110px;display:block;"></canvas>
+    </div>
+    <!-- Alerts -->
+    <div class="alert-panel-dash">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+        <span style="font-family:var(--mono);font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.08em;">Active alerts</span>
+        <span id="d-alert-count" style="font-family:var(--mono);font-size:11px;background:rgba(52,211,153,0.1);color:#34d399;border:1px solid rgba(52,211,153,0.25);padding:2px 10px;border-radius:4px">0 active</span>
+      </div>
+      <div id="d-alert-list">
+        <div class="alert-item-dash aok"><div class="adot"></div>Schema validity 97.2% — above 93% threshold. No action needed.</div>
+        <div class="alert-item-dash aok"><div class="adot"></div>Skill item count 29.4 — above minimum threshold of 24.</div>
+        <div class="alert-item-dash aok"><div class="adot"></div>Shared token ratio 0.154 — within ±20% of training baseline 0.157.</div>
+        <div class="alert-item-dash aok"><div class="adot"></div>Hallucination rate 0.4% — below 2% alert threshold.</div>
+      </div>
+    </div>
+    <!-- Drift bars -->
+    <div class="drift-panel-dash">
+      <div style="display:flex;justify-content:space-between;margin-bottom:10px;">
+        <span style="font-family:var(--mono);font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.08em;">Input distribution drift — vs training baseline</span>
+        <span style="font-family:var(--mono);font-size:10px;color:var(--text-dim)">Green = stable · Amber = watch · Red = alert</span>
+      </div>
+      <div class="drift-row-dash"><div class="drift-label-dash">Resume word count drift</div><div class="drift-track-dash"><div class="drift-fill-dash" id="d-drift-resume" style="width:18%;background:#34d399"></div></div><div class="drift-val-dash" id="d-drift-resume-val" style="color:#34d399">+8% shift</div></div>
+      <div class="drift-row-dash"><div class="drift-label-dash">JD word count drift</div><div class="drift-track-dash"><div class="drift-fill-dash" id="d-drift-jd" style="width:12%;background:#34d399"></div></div><div class="drift-val-dash" id="d-drift-jd-val" style="color:#34d399">+5% shift</div></div>
+      <div class="drift-row-dash"><div class="drift-label-dash">Shared token ratio drift</div><div class="drift-track-dash"><div class="drift-fill-dash" id="d-drift-ratio" style="width:10%;background:#34d399"></div></div><div class="drift-val-dash" id="d-drift-ratio-val" style="color:#34d399">−2% shift</div></div>
+      <div class="drift-row-dash"><div class="drift-label-dash">Lexical diversity drift</div><div class="drift-track-dash"><div class="drift-fill-dash" id="d-drift-lex" style="width:8%;background:#34d399"></div></div><div class="drift-val-dash" id="d-drift-lex-val" style="color:#34d399">−1% shift</div></div>
+      <div class="drift-row-dash"><div class="drift-label-dash">PDF vs DOCX ratio shift</div><div class="drift-track-dash"><div class="drift-fill-dash" id="d-drift-pdf" style="width:15%;background:#34d399"></div></div><div class="drift-val-dash" id="d-drift-pdf-val" style="color:#34d399">+4% PDF share</div></div>
+    </div>
+    <!-- Retraining triggers -->
+    <div class="retrain-panel-dash">
+      <div style="font-family:var(--mono);font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:10px;">Retraining trigger status</div>
+      <div class="trigger-grid-dash">
+        <div class="trigger-dash">
+          <div class="trigger-name-dash">Vocabulary drift trigger</div>
+          <div class="trigger-status-dash" id="d-t1-status" style="color:#34d399">Not triggered</div>
+          <div class="trigger-bar-wrap-dash"><div class="trigger-bar-dash" id="d-t1-bar" style="width:18%;background:#34d399"></div></div>
+          <div class="trigger-label-dash"><span id="d-t1-val">18% new vocab</span><span>Threshold: 30%</span></div>
+        </div>
+        <div class="trigger-dash">
+          <div class="trigger-name-dash">Quality degradation trigger</div>
+          <div class="trigger-status-dash" id="d-t2-status" style="color:#34d399">Not triggered</div>
+          <div class="trigger-bar-wrap-dash"><div class="trigger-bar-dash" id="d-t2-bar" style="width:8%;background:#34d399"></div></div>
+          <div class="trigger-label-dash"><span id="d-t2-val">0 of 3 flags</span><span>Threshold: 2+ flags</span></div>
+        </div>
+        <div class="trigger-dash">
+          <div class="trigger-name-dash">Quarterly scheduled refresh</div>
+          <div class="trigger-status-dash" style="color:var(--accent)">Due in 47 days</div>
+          <div class="trigger-bar-wrap-dash"><div class="trigger-bar-dash" style="width:48%;background:var(--accent)"></div></div>
+          <div class="trigger-label-dash"><span>Q2 2026</span><span>Every 90 days</span></div>
+        </div>
+      </div>
+      <div class="btn-row-dash">
+        <button class="mon-btn-dash" onclick="dSimulateDrift()">Simulate drift event</button>
+        <button class="mon-btn-dash danger" id="d-retrain-btn" onclick="dTriggerRetrain()" style="display:none">⚠ Initiate retraining</button>
+        <button class="mon-btn-dash" onclick="dResetDashboard()">Reset to baseline</button>
+        <span class="sim-label-dash" id="d-sim-label"></span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Retraining strategy -->
+  <div class="card" style="border-color:rgba(79,124,255,0.2);">
+    <div class="card-title">Retraining Strategy — Trigger-Based, Not Schedule-Based</div>
+    <p>Rather than retraining on a fixed calendar, the system uses three independent triggers. Any one reaching its threshold initiates a retraining cycle using only the QLoRA adapter weights — not the full Qwen 4B base model. Since adapter weights at rank r=16 are a tiny fraction of the full model, a retraining cycle runs on the same GPU used for inference during off-peak hours at near-zero additional cost.</p>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Trigger</th><th>Condition</th><th>Action</th><th>Est. Cost</th></tr></thead>
+        <tbody>
+          <tr>
+            <td><strong style="color:var(--text)">Vocabulary drift</strong></td>
+            <td>30%+ of top-100 JD tokens absent from training vocab over 30-day scrape</td>
+            <td>Queue retraining with fresh Gemini teacher outputs on new JD sample</td>
+            <td style="color:var(--text-muted)">~$15–30 GPU hours</td>
+          </tr>
+          <tr>
+            <td><strong style="color:var(--text)">Quality degradation</strong></td>
+            <td>Schema validity &lt;93% OR skill count &lt;24 OR hallucination &gt;1.5% sustained 14 days</td>
+            <td>Emergency retraining cycle, flag outputs for manual review in interim</td>
+            <td style="color:var(--text-muted)">~$15–30 GPU hours</td>
+          </tr>
+          <tr>
+            <td><strong style="color:var(--text)">Quarterly refresh</strong></td>
+            <td>Every 90 days regardless of alert status</td>
+            <td>Lightweight adapter update on 300–500 new resume–JD pairs</td>
+            <td style="color:var(--text-muted)">~$8–15 GPU hours</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <h3 style="font-family:var(--mono);font-size:12px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.08em;margin:1.5rem 0 0.75rem;">Practical Maintenance Plan</h3>
+  <ul class="maint-list">
+    <li><div class="maint-check">✓</div><div>Log request/response outcomes for each API call — record latency, schema validity, and token counts per request for downstream analysis.</div></li>
+    <li><div class="maint-check">✓</div><div>Periodically sample outputs for manual review — a random ~5% sample each week to catch quality regressions that automated metrics may miss.</div></li>
+    <li><div class="maint-check">✓</div><div>Check whether parsing quality declines for certain file types — monitor PDF vs. DOCX output quality separately, as the training corpus is 72.4% DOCX.</div></li>
+    <li><div class="maint-check">✓</div><div>Monitor changes in job-description vocabulary and document structure — retrain or refresh the LoRA adapter if production input patterns drift significantly from the training distribution.</div></li>
+    <li><div class="maint-check">✓</div><div>Track hallucination detection results — ensure generated bullets and credentials trace back to content present in the submitted resume, not invented by the model.</div></li>
+  </ul>
+
+  <blockquote>
+    The 94% cost reduction versus GPT-4 API only holds if the self-hosted SLM produces outputs of comparable quality. Monitoring and retraining is what makes the cost savings <em>permanent</em> rather than temporary. A stale model producing mediocre outputs at $300/month is not a better product than a current model producing excellent outputs at $8,000/month.
+  </blockquote>
+</section>
+
+<!-- SECTION 04 — Team -->
+<section class="section" id="team">
+  <div class="section-header">
+    <div class="section-num">Section 04</div>
+    <div class="section-title-wrap">
+      <div class="section-title">Team Contributions</div>
+      <div class="section-sub">Deployment Assignment — Individual Responsibilities</div>
+    </div>
+  </div>
+
+  <div class="team-grid">
+    <div class="team-card">
+      <div class="team-avatar">VB</div>
+      <div class="team-name">Vaishnav Busha</div>
+      <div class="team-role">Software Engineer Lead</div>
+      <div class="team-desc">Led backend architecture design and FastAPI endpoint development. Managed LoRA adapter integration, Spring Boot microservices experience, and GenAI workflow design including the Project Manthan data extraction system.</div>
+    </div>
+    <div class="team-card">
+      <div class="team-avatar">NM</div>
+      <div class="team-name">Nishith Chowdary Mareddy</div>
+      <div class="team-role">Model Development</div>
+      <div class="team-desc">Led QLoRA fine-tuning methodology, adapter training configuration (rank r=16, 4-bit quantization), and vLLM inference server selection. Provided model architecture context for deployment writeup.</div>
+    </div>
+    <div class="team-card">
+      <div class="team-avatar">JS</div>
+      <div class="team-name">Jyothi Swaroop Ganapavarapu</div>
+      <div class="team-role">Data &amp; Preprocessing Lead</div>
+      <div class="team-desc">Managed dataset acquisition (1,530 training pairs), OCR-based resume parsing, multi-format PDF/DOCX handling, and prompt construction pipeline. Built the Gemini batch request workflow for teacher output generation.</div>
+    </div>
+    <div class="team-card">
+      <div class="team-avatar">TK</div>
+      <div class="team-name">Talha Khan</div>
+      <div class="team-role">Evaluation &amp; Cost Analysis</div>
+      <div class="team-desc">Designed the quality metrics framework (schema validity, semantic similarity, skill coverage, hallucination rate). Led the cost modeling comparison showing 94%+ reduction versus GPT-4 API at production scale.</div>
+    </div>
+  </div>
+
+  <div class="card" style="margin-top:1.25rem;border-color:rgba(79,124,255,0.2);">
+    <div class="card-title">Collaborative Contributions — All Members</div>
+    <p style="margin:0;">Problem framing for production deployment design, API endpoint specification, architecture stack selection, monitoring metric definition, maintenance plan authoring, final document review and integration.</p>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer>
+  DTSC 5082 · Seminar in Research and Research Methodology · Group Project · Professor: Clifford K. Whitworth<br/><br/>
+  Dataset: final_resume_dataset.parquet (n=1,530) · Model: <span>Qwen3-4B-Instruct-2507</span> · Fine-tuning: <span>QLoRA LoRA adapter</span> · Submission: Model Deployment
+</footer>
+
+<script src="resume_ai.js"></script>
+<script>
+  // ── Monitoring dashboard ──
+  (function(){
+    var days = 30;
+    var schemaBase = 97.2, skillsBase = 29.95;
+    function gen(base, noise, len) {
+      var a = []; var v = base;
+      for (var i = 0; i < len; i++) {
+        v = v + (Math.random() - 0.5) * noise;
+        v = Math.max(base * 0.88, Math.min(base * 1.02, v));
+        a.push(+v.toFixed(2));
+      }
+      return a;
+    }
+    var schemaData = gen(schemaBase, 0.8, days);
+    var skillsData = gen(skillsBase, 1.2, days);
+    var driftActive = false;
+
+    function drawChart(id, data, thresh, color, threshColor, minY, maxY, unit) {
+      var canvas = document.getElementById(id); if (!canvas) return;
+      var ctx = canvas.getContext('2d');
+      var W = canvas.parentElement.offsetWidth || 700; var H = 110;
+      canvas.width = W; canvas.height = H; ctx.clearRect(0, 0, W, H);
+      var pad = {l:36,r:12,t:10,b:24}, cW = W - pad.l - pad.r, cH = H - pad.t - pad.b;
+      ctx.fillStyle = '#131828'; ctx.fillRect(0, 0, W, H);
+      var ty = pad.t + cH - ((thresh - minY) / (maxY - minY)) * cH;
+      ctx.strokeStyle = threshColor; ctx.lineWidth = 1; ctx.setLineDash([4,4]);
+      ctx.beginPath(); ctx.moveTo(pad.l, ty); ctx.lineTo(W - pad.r, ty); ctx.stroke(); ctx.setLineDash([]);
+      ctx.fillStyle = threshColor; ctx.font = '9px sans-serif'; ctx.fillText('threshold', W - pad.r - 52, ty - 3);
+      ctx.strokeStyle = 'rgba(100,130,255,0.1)'; ctx.lineWidth = 0.5;
+      for (var i = 0; i <= 4; i++) {
+        var y = pad.t + (cH / 4) * i;
+        ctx.beginPath(); ctx.moveTo(pad.l, y); ctx.lineTo(W - pad.r, y); ctx.stroke();
+        var val = maxY - ((maxY - minY) / 4) * i;
+        ctx.fillStyle = '#64748b'; ctx.font = '9px sans-serif'; ctx.textAlign = 'right';
+        ctx.fillText(val.toFixed(1) + unit, pad.l - 4, y + 3);
+      }
+      ctx.textAlign = 'left';
+      ctx.beginPath();
+      data.forEach(function(v, i) {
+        var x = pad.l + (i / (data.length - 1)) * cW;
+        var y = pad.t + cH - ((v - minY) / (maxY - minY)) * cH;
+        i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+      });
+      ctx.lineTo(pad.l + cW, pad.t + cH); ctx.lineTo(pad.l, pad.t + cH); ctx.closePath();
+      ctx.fillStyle = color + '33'; ctx.fill();
+      ctx.beginPath();
+      data.forEach(function(v, i) {
+        var x = pad.l + (i / (data.length - 1)) * cW;
+        var y = pad.t + cH - ((v - minY) / (maxY - minY)) * cH;
+        i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+      });
+      ctx.strokeStyle = color; ctx.lineWidth = 2; ctx.stroke();
+      ctx.fillStyle = '#64748b'; ctx.font = '9px sans-serif'; ctx.textAlign = 'center';
+      [0,7,14,21,29].forEach(function(i) {
+        var x = pad.l + (i / (data.length - 1)) * cW;
+        ctx.fillText('Day ' + (i + 1), x, H - 6);
+      });
+      ctx.textAlign = 'left';
+    }
+
+    function redraw() {
+      drawChart('d-schema-chart', schemaData, 93, '#4f7cff', '#f87171', 88, 100, '%');
+      drawChart('d-skills-chart', skillsData, 24, '#34d399', '#f87171', 18, 36, '');
+    }
+
+    function updateKPIs() {
+      var avgS = (schemaData.slice(-7).reduce(function(a,b){return a+b;}, 0) / 7).toFixed(1);
+      var avgK = (skillsData.slice(-7).reduce(function(a,b){return a+b;}, 0) / 7).toFixed(1);
+      var sEl = document.getElementById('d-kpi-schema');
+      var kEl = document.getElementById('d-kpi-skills');
+      sEl.textContent = avgS + '%'; kEl.textContent = avgK;
+      var sOk = parseFloat(avgS) >= 93; var kOk = parseFloat(avgK) >= 24;
+      sEl.style.color = sOk ? '#34d399' : '#f87171';
+      kEl.style.color = kOk ? '#4f7cff' : '#f87171';
+      document.getElementById('d-kpi-schema-trend').textContent = sOk ? '↑ above 93% threshold' : '↓ BELOW 93% threshold';
+      document.getElementById('d-kpi-schema-trend').className = 'mon-trend-dash ' + (sOk ? 'dtgood' : 'dtbad');
+      document.getElementById('d-kpi-skills-trend').textContent = kOk ? '≈ baseline 29.95' : '↓ BELOW 24 threshold';
+      document.getElementById('d-kpi-skills-trend').className = 'mon-trend-dash ' + (kOk ? 'dtgood' : 'dtbad');
+      return {sOk:sOk, kOk:kOk, avgS:parseFloat(avgS), avgK:parseFloat(avgK)};
+    }
+
+    function updateAlerts(k) {
+      var items = []; var err = 0;
+      if (!k.sOk) { items.push({c:'aerr', m:'ALERT: Schema validity ' + k.avgS + '% — below 93% threshold for 14+ days. Retraining required.'}); err++; }
+      else items.push({c:'aok', m:'Schema validity ' + k.avgS + '% — above 93% threshold. No action needed.'});
+      if (!k.kOk) { items.push({c:'aerr', m:'ALERT: Mean skill items ' + k.avgK + ' — below 24 threshold. Output quality degraded.'}); err++; }
+      else items.push({c:'aok', m:'Skill item count ' + k.avgK + ' — above minimum threshold of 24.'});
+      if (driftActive) {
+        items.push({c:'awarn', m:'WARNING: Shared token ratio dropped to 0.108 — 31% below training baseline. Vocabulary drift detected.'});
+        items.push({c:'aerr', m:'ALERT: PDF share reached 38% — exceeds 35% retraining threshold. Format distribution shifted.'}); err++;
+      } else {
+        items.push({c:'aok', m:'Shared token ratio 0.154 — within ±20% of training baseline 0.157.'});
+        items.push({c:'aok', m:'Hallucination rate 0.4% — below 2% alert threshold.'});
+      }
+      document.getElementById('d-alert-list').innerHTML = items.map(function(a) {
+        return '<div class="alert-item-dash ' + a.c + '"><div class="adot"></div>' + a.m + '</div>';
+      }).join('');
+      var ce = document.getElementById('d-alert-count');
+      ce.textContent = err + ' active';
+      ce.style.background = err > 0 ? 'rgba(248,113,113,0.1)' : 'rgba(52,211,153,0.1)';
+      ce.style.color = err > 0 ? '#f87171' : '#34d399';
+      ce.style.borderColor = err > 0 ? 'rgba(248,113,113,0.25)' : 'rgba(52,211,153,0.25)';
+      var sd = document.getElementById('dash-status'); var dot = document.getElementById('dash-dot');
+      if (err > 0) { sd.textContent = err + ' alert' + (err > 1 ? 's' : '') + ' active'; dot.style.background = '#f87171'; }
+      else { sd.textContent = 'All systems nominal'; dot.style.background = '#34d399'; }
+      return err;
+    }
+
+    function updateDrift(active) {
+      var d = active
+        ? [{i:'d-drift-resume',w:38,v:'+28% shift',c:'#f59e0b'},{i:'d-drift-jd',w:22,v:'+18% shift',c:'#f59e0b'},{i:'d-drift-ratio',w:62,v:'−31% shift',c:'#f87171'},{i:'d-drift-lex',w:28,v:'−14% shift',c:'#f59e0b'},{i:'d-drift-pdf',w:72,v:'+22% PDF share',c:'#f87171'}]
+        : [{i:'d-drift-resume',w:18,v:'+8% shift',c:'#34d399'},{i:'d-drift-jd',w:12,v:'+5% shift',c:'#34d399'},{i:'d-drift-ratio',w:10,v:'−2% shift',c:'#34d399'},{i:'d-drift-lex',w:8,v:'−1% shift',c:'#34d399'},{i:'d-drift-pdf',w:15,v:'+4% PDF share',c:'#34d399'}];
+      d.forEach(function(x) {
+        var b = document.getElementById(x.i); var vEl = document.getElementById(x.i + '-val');
+        if (b) { b.style.width = x.w + '%'; b.style.background = x.c; }
+        if (vEl) { vEl.textContent = x.v; vEl.style.color = x.c; }
+      });
+    }
+
+    function updateTriggers(active, err) {
+      if (active) {
+        document.getElementById('d-t1-bar').style.width = '72%'; document.getElementById('d-t1-bar').style.background = '#f87171';
+        document.getElementById('d-t1-status').textContent = '⚠ TRIGGERED — 72% new vocab'; document.getElementById('d-t1-status').style.color = '#f87171';
+        document.getElementById('d-t1-val').textContent = '72% new vocab';
+        var pct = (err / 3 * 100).toFixed(0) + '%';
+        document.getElementById('d-t2-bar').style.width = pct; document.getElementById('d-t2-bar').style.background = err >= 2 ? '#f87171' : '#f59e0b';
+        document.getElementById('d-t2-status').textContent = err >= 2 ? '⚠ TRIGGERED — ' + err + ' of 3 flags' : 'Watching — ' + err + ' of 3 flags';
+        document.getElementById('d-t2-status').style.color = err >= 2 ? '#f87171' : '#f59e0b';
+        document.getElementById('d-t2-val').textContent = err + ' of 3 flags';
+        document.getElementById('d-retrain-btn').style.display = 'inline-block';
+        document.getElementById('d-sim-label').textContent = 'Drift detected — retraining recommended';
+        document.getElementById('d-sim-label').style.color = '#f87171';
+      } else {
+        document.getElementById('d-t1-bar').style.width = '18%'; document.getElementById('d-t1-bar').style.background = '#34d399';
+        document.getElementById('d-t1-status').textContent = 'Not triggered'; document.getElementById('d-t1-status').style.color = '#34d399';
+        document.getElementById('d-t1-val').textContent = '18% new vocab';
+        document.getElementById('d-t2-bar').style.width = '8%'; document.getElementById('d-t2-bar').style.background = '#34d399';
+        document.getElementById('d-t2-status').textContent = 'Not triggered'; document.getElementById('d-t2-status').style.color = '#34d399';
+        document.getElementById('d-t2-val').textContent = '0 of 3 flags';
+        document.getElementById('d-retrain-btn').style.display = 'none';
+        document.getElementById('d-sim-label').textContent = '';
+      }
+    }
+
+    function fullUpdate() { redraw(); var k = updateKPIs(); var e = updateAlerts(k); updateDrift(driftActive); updateTriggers(driftActive, e + (driftActive ? 1 : 0)); }
+
+    window.dSimulateDrift = function() {
+      driftActive = true;
+      schemaData = schemaData.map(function(v, i) { return i < 20 ? v : Math.max(88, v - (i - 20) * 0.35); });
+      skillsData = skillsData.map(function(v, i) { return i < 20 ? v : Math.max(19, v - (i - 20) * 0.55); });
+      document.getElementById('d-kpi-ratio').textContent = '0.108'; document.getElementById('d-kpi-ratio').style.color = '#f87171';
+      document.getElementById('d-kpi-ratio-trend').textContent = '↓ −31% from baseline — ALERT'; document.getElementById('d-kpi-ratio-trend').className = 'mon-trend-dash dtbad';
+      document.getElementById('d-kpi-halluc').textContent = '2.8%'; document.getElementById('d-kpi-halluc').style.color = '#f87171';
+      document.getElementById('d-kpi-halluc-trend').textContent = '↑ ABOVE 2% threshold'; document.getElementById('d-kpi-halluc-trend').className = 'mon-trend-dash dtbad';
+      fullUpdate();
+    };
+
+    window.dResetDashboard = function() {
+      driftActive = false;
+      schemaData = gen(schemaBase, 0.8, days); skillsData = gen(skillsBase, 1.2, days);
+      document.getElementById('d-kpi-ratio').textContent = '0.154'; document.getElementById('d-kpi-ratio').style.color = 'var(--accent)';
+      document.getElementById('d-kpi-ratio-trend').textContent = '≈ training baseline 0.157'; document.getElementById('d-kpi-ratio-trend').className = 'mon-trend-dash dtgood';
+      document.getElementById('d-kpi-halluc').textContent = '0.4%'; document.getElementById('d-kpi-halluc').style.color = '#34d399';
+      document.getElementById('d-kpi-halluc-trend').textContent = '↓ below 2% threshold'; document.getElementById('d-kpi-halluc-trend').className = 'mon-trend-dash dtgood';
+      document.getElementById('d-sim-label').textContent = 'Reset to baseline'; document.getElementById('d-sim-label').style.color = '#34d399';
+      fullUpdate();
+    };
+
+    window.dTriggerRetrain = function() {
+      var btn = document.getElementById('d-retrain-btn');
+      btn.textContent = 'Retraining QLoRA adapters...'; btn.disabled = true;
+      var p = 0;
+      var iv = setInterval(function() {
+        p += Math.random() * 18;
+        if (p >= 100) {
+          clearInterval(iv);
+          btn.textContent = '✓ Retraining complete'; btn.className = 'mon-btn-dash';
+          btn.style.background = 'rgba(52,211,153,0.1)'; btn.style.color = '#34d399'; btn.style.borderColor = 'rgba(52,211,153,0.3)';
+          setTimeout(function() {
+            window.dResetDashboard();
+            btn.style.display = 'none'; btn.disabled = false;
+            btn.textContent = '⚠ Initiate retraining'; btn.className = 'mon-btn-dash danger';
+          }, 1500);
+        } else {
+          btn.textContent = 'Retraining... ' + Math.min(99, Math.round(p)) + '%';
+        }
+      }, 200);
+    };
+
+    window.addEventListener('load', function() { setTimeout(fullUpdate, 150); });
+    window.addEventListener('resize', redraw);
+  })();
+</script>
+</body>
+</html>

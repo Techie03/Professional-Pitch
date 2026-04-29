@@ -1,0 +1,533 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>JSON Schema — Resume Optimization SLM</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=Sora:wght@300;400;500;600;700&family=DM+Serif+Display:ital@0;1&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --bg: #0c0f1a;
+    --surface: #131828;
+    --surface2: #1a2038;
+    --border: rgba(100,130,255,0.15);
+    --accent: #4f7cff;
+    --accent2: #a78bfa;
+    --accent3: #34d399;
+    --accent4: #f59e0b;
+    --text: #e2e8f0;
+    --text-muted: #94a3b8;
+    --text-dim: #64748b;
+    --danger: #f87171;
+    --mono: 'IBM Plex Mono', monospace;
+    --sans: 'Sora', sans-serif;
+    --serif: 'DM Serif Display', serif;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    font-size: 15px;
+    line-height: 1.7;
+    overflow-x: hidden;
+    min-height: 100vh;
+  }
+  body::before {
+    content: '';
+    position: fixed; inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
+    pointer-events: none; z-index: 0; opacity: 0.4;
+  }
+
+  /* HEADER */
+  header {
+    position: sticky; top: 0; z-index: 100;
+    background: rgba(12,15,26,0.92);
+    backdrop-filter: blur(16px);
+    border-bottom: 1px solid var(--border);
+    padding: 0 2rem;
+  }
+  .header-inner {
+    max-width: 1100px; margin: 0 auto;
+    display: flex; align-items: center; justify-content: space-between;
+    height: 60px;
+  }
+  .header-badge { font-family: var(--mono); font-size: 11px; color: var(--text-muted); letter-spacing: 0.1em; text-transform: uppercase; }
+  .header-badge span { color: var(--accent); font-weight: 600; }
+  .status-dot { display: inline-flex; align-items: center; gap: 6px; font-family: var(--mono); font-size: 11px; color: var(--accent3); }
+  .status-dot::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: var(--accent3); animation: pulse 2s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.3} }
+
+  /* HERO */
+  .hero { position: relative; z-index: 1; padding: 3.5rem 2rem 2.5rem; text-align: center; }
+  .hero::after { content: ''; position: absolute; top: 0; left: 50%; transform: translateX(-50%); width: 700px; height: 300px; background: radial-gradient(ellipse at center, rgba(79,124,255,0.1) 0%, transparent 70%); pointer-events: none; }
+  .course-label { display: inline-block; font-family: var(--mono); font-size: 11px; letter-spacing: 0.15em; color: var(--accent); text-transform: uppercase; border: 1px solid rgba(79,124,255,0.3); padding: 4px 14px; border-radius: 20px; margin-bottom: 1.25rem; background: rgba(79,124,255,0.05); }
+  .hero h1 { font-family: var(--serif); font-size: clamp(1.6rem, 4vw, 2.8rem); color: #fff; margin-bottom: 0.5rem; }
+  .hero h1 em { font-style: italic; color: var(--accent2); }
+  .hero .subtitle { font-size: 13px; color: var(--text-muted); font-family: var(--mono); letter-spacing: 0.03em; }
+
+  /* MAIN */
+  .main { max-width: 1100px; margin: 0 auto; padding: 2rem 2rem 4rem; position: relative; z-index: 1; }
+
+  /* TOP TOOLBAR */
+  .toolbar {
+    display: flex; align-items: center; justify-content: space-between;
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 12px 12px 0 0; padding: 12px 20px;
+    border-bottom: none;
+  }
+  .toolbar-left { display: flex; align-items: center; gap: 12px; }
+  .toolbar-title { font-family: var(--mono); font-size: 13px; font-weight: 600; color: var(--text); }
+  .toolbar-subtitle { font-family: var(--mono); font-size: 11px; color: var(--text-dim); }
+  .toolbar-right { display: flex; gap: 8px; align-items: center; }
+  .badge-valid { display: inline-flex; align-items: center; gap: 5px; font-family: var(--mono); font-size: 11px; color: var(--accent3); background: rgba(52,211,153,0.1); border: 1px solid rgba(52,211,153,0.25); padding: 3px 10px; border-radius: 20px; }
+  .badge-valid::before { content:''; width:5px; height:5px; border-radius:50%; background:var(--accent3); }
+  .tb-btn { font-family: var(--mono); font-size: 11px; padding: 5px 12px; border-radius: 6px; border: 1px solid var(--border); background: var(--surface2); color: var(--text-dim); cursor: pointer; transition: all .15s; }
+  .tb-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .tb-btn.active { background: rgba(79,124,255,0.12); border-color: var(--accent); color: var(--accent); }
+
+  /* TAB BAR */
+  .tabbar {
+    display: flex; background: var(--surface2); border: 1px solid var(--border); border-top: none; border-bottom: none;
+    gap: 0;
+  }
+  .tab { font-family: var(--mono); font-size: 11px; padding: 10px 18px; color: var(--text-dim); cursor: pointer; border-right: 1px solid var(--border); transition: all .15s; border-bottom: 2px solid transparent; }
+  .tab:hover { color: var(--text); background: rgba(79,124,255,0.04); }
+  .tab.active { color: var(--accent); border-bottom-color: var(--accent); background: rgba(79,124,255,0.07); }
+  .tab-spacer { flex: 1; }
+
+  /* JSON VIEWER */
+  .json-container {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 0 0 12px 12px; overflow: hidden;
+  }
+  .json-body { padding: 0; overflow-x: auto; }
+  .json-line {
+    display: flex; align-items: flex-start; gap: 0;
+    font-family: var(--mono); font-size: 13px; line-height: 1.9;
+    padding: 0 0;
+    border-left: 3px solid transparent;
+    transition: background .1s;
+  }
+  .json-line:hover { background: rgba(79,124,255,0.04); }
+  .json-line.highlight { border-left-color: var(--accent); background: rgba(79,124,255,0.06); }
+  .ln { min-width: 48px; text-align: right; padding: 0 16px 0 0; color: var(--text-dim); font-size: 11px; user-select: none; border-right: 1px solid var(--border); margin-right: 16px; flex-shrink: 0; }
+  .json-content { flex: 1; padding: 0 20px 0 0; white-space: pre; }
+  .jk { color: #7dd3fc; } /* key */
+  .jv-str { color: #86efac; } /* string value */
+  .jv-num { color: #fbbf24; } /* number */
+  .jv-bool { color: #f472b6; } /* bool */
+  .jv-null { color: #94a3b8; } /* null */
+  .jp { color: var(--text-dim); } /* punctuation */
+  .jc { color: #475569; font-style: italic; } /* comment */
+  .expand-btn { cursor: pointer; color: var(--accent2); font-size: 11px; user-select: none; margin-left: 4px; opacity: 0.7; }
+  .expand-btn:hover { opacity: 1; }
+
+  /* SCHEMA TABLE */
+  .schema-table-wrap { padding: 1.5rem; overflow-x: auto; display: none; }
+  table { width: 100%; border-collapse: collapse; }
+  thead th { font-family: var(--mono); font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-dim); padding: 10px 14px; text-align: left; background: var(--surface2); border-bottom: 1px solid var(--border); }
+  tbody td { padding: 11px 14px; border-bottom: 1px solid rgba(100,130,255,0.07); font-size: 13px; color: var(--text-muted); vertical-align: top; font-family: var(--mono); }
+  tbody tr:hover td { background: rgba(79,124,255,0.04); }
+  .tag { font-family: var(--mono); font-size: 11px; padding: 2px 9px; border-radius: 4px; background: rgba(79,124,255,0.12); color: var(--accent); border: 1px solid rgba(79,124,255,0.2); }
+  .tag.green { background: rgba(52,211,153,0.12); color: var(--accent3); border-color: rgba(52,211,153,0.2); }
+  .tag.amber { background: rgba(245,158,11,0.12); color: var(--accent4); border-color: rgba(245,158,11,0.2); }
+  .tag.purple { background: rgba(167,139,250,0.12); color: var(--accent2); border-color: rgba(167,139,250,0.2); }
+  .req-badge { font-family: var(--mono); font-size: 10px; padding: 1px 7px; border-radius: 10px; background: rgba(248,113,113,0.1); color: #f87171; border: 1px solid rgba(248,113,113,0.2); }
+  .opt-badge { font-family: var(--mono); font-size: 10px; padding: 1px 7px; border-radius: 10px; background: rgba(100,116,139,0.15); color: var(--text-dim); border: 1px solid var(--border); }
+
+  /* STATS BAR */
+  .stats-row { display: flex; border-top: 1px solid var(--border); background: var(--surface2); }
+  .stat { flex: 1; text-align: center; padding: 10px 8px; border-right: 1px solid var(--border); }
+  .stat:last-child { border-right: none; }
+  .stat-v { font-family: var(--mono); font-size: 14px; font-weight: 700; color: var(--accent); display: block; }
+  .stat-l { font-size: 10px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.06em; }
+
+  /* BOTTOM INFO */
+  .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-top: 1.5rem; }
+  @media(max-width:640px){ .info-grid { grid-template-columns: 1fr; } }
+  .info-card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 1.25rem; }
+  .info-card-title { font-family: var(--mono); font-size: 11px; font-weight: 700; color: var(--accent); text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 0.75rem; }
+  .info-card p { font-size: 13px; color: var(--text-dim); margin: 0; line-height: 1.6; }
+  .endpoint-row { display: flex; align-items: center; gap: 10px; padding: 7px 10px; background: var(--surface2); border-radius: 6px; margin-bottom: 6px; font-family: var(--mono); font-size: 12px; }
+  .endpoint-row:last-child { margin-bottom: 0; }
+  .method { font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 4px; }
+  .get { background: rgba(52,211,153,0.15); color: var(--accent3); }
+  .post { background: rgba(79,124,255,0.15); color: var(--accent); }
+  .ep-path { color: var(--text); }
+  .ep-desc { color: var(--text-dim); font-size: 11px; margin-left: auto; }
+
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: var(--bg); }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+  footer { text-align: center; padding: 2rem; border-top: 1px solid var(--border); font-family: var(--mono); font-size: 11px; color: var(--text-dim); position: relative; z-index: 1; }
+  footer span { color: var(--accent); }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-inner">
+    <div class="header-badge">DTSC 5082 · <span>GET /schema</span> · Resume Optimization SLM</div>
+    <div class="status-dot">Schema loaded</div>
+  </div>
+</header>
+
+<section class="hero">
+  <div class="course-label">API Response · GET /schema · Qwen3-4B SLM</div>
+  <h1>JSON Output <em>Schema</em></h1>
+  <p class="subtitle">Structured tailored-resume schema · All required fields · Validated on every inference call</p>
+</section>
+
+<div class="main">
+
+  <!-- TOOLBAR -->
+  <div class="toolbar">
+    <div class="toolbar-left">
+      <div>
+        <div class="toolbar-title">tailored_resume.schema.json</div>
+        <div class="toolbar-subtitle">Resume Optimization SLM · Output format specification</div>
+      </div>
+    </div>
+    <div class="toolbar-right">
+      <span class="badge-valid">Schema valid</span>
+      <button class="tb-btn" onclick="copyJSON()">⎘ Copy JSON</button>
+      <button class="tb-btn" onclick="downloadJSON()">↓ Download</button>
+    </div>
+  </div>
+
+  <!-- TAB BAR -->
+  <div class="tabbar">
+    <div class="tab active" onclick="switchTab('viewer', this)">JSON Viewer</div>
+    <div class="tab" onclick="switchTab('schema', this)">Schema Reference</div>
+    <div class="tab" onclick="switchTab('sample', this)">Sample Output</div>
+    <div class="tab-spacer"></div>
+  </div>
+
+  <!-- JSON CONTAINER -->
+  <div class="json-container">
+    <!-- JSON VIEWER TAB -->
+    <div id="tab-viewer" class="json-body" style="padding: 8px 0;"></div>
+
+    <!-- SCHEMA REFERENCE TAB -->
+    <div id="tab-schema" class="schema-table-wrap">
+      <table>
+        <thead>
+          <tr><th>Field</th><th>Type</th><th>Required</th><th>Description</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><span style="color:#7dd3fc">personal_information</span></td><td><span class="tag">object</span></td><td><span class="req-badge">required</span></td><td>Candidate contact details and social links</td></tr>
+          <tr><td style="padding-left:28px"><span style="color:#7dd3fc">name</span></td><td><span class="tag purple">string</span></td><td><span class="req-badge">required</span></td><td>Full legal name</td></tr>
+          <tr><td style="padding-left:28px"><span style="color:#7dd3fc">email</span></td><td><span class="tag purple">string</span></td><td><span class="req-badge">required</span></td><td>Contact email address</td></tr>
+          <tr><td style="padding-left:28px"><span style="color:#7dd3fc">phone</span></td><td><span class="tag purple">string</span></td><td><span class="opt-badge">optional</span></td><td>Phone number with country code</td></tr>
+          <tr><td style="padding-left:28px"><span style="color:#7dd3fc">location</span></td><td><span class="tag purple">string</span></td><td><span class="opt-badge">optional</span></td><td>City, State, Country</td></tr>
+          <tr><td style="padding-left:28px"><span style="color:#7dd3fc">socials</span></td><td><span class="tag amber">array</span></td><td><span class="opt-badge">optional</span></td><td>List of social links (name + link)</td></tr>
+          <tr><td><span style="color:#7dd3fc">summary</span></td><td><span class="tag purple">string</span></td><td><span class="req-badge">required</span></td><td>3–4 sentence professional summary tailored to target job description</td></tr>
+          <tr><td><span style="color:#7dd3fc">experiences</span></td><td><span class="tag amber">array</span></td><td><span class="req-badge">required</span></td><td>Work history — each item has designation, companyName, location, dates, points</td></tr>
+          <tr><td style="padding-left:28px"><span style="color:#7dd3fc">designation</span></td><td><span class="tag purple">string</span></td><td><span class="req-badge">required</span></td><td>Job title</td></tr>
+          <tr><td style="padding-left:28px"><span style="color:#7dd3fc">companyName</span></td><td><span class="tag purple">string</span></td><td><span class="req-badge">required</span></td><td>Employer name</td></tr>
+          <tr><td style="padding-left:28px"><span style="color:#7dd3fc">start_date</span></td><td><span class="tag purple">string</span></td><td><span class="req-badge">required</span></td><td>e.g., "June 2022"</td></tr>
+          <tr><td style="padding-left:28px"><span style="color:#7dd3fc">end_date</span></td><td><span class="tag purple">string</span></td><td><span class="req-badge">required</span></td><td>e.g., "Present"</td></tr>
+          <tr><td style="padding-left:28px"><span style="color:#7dd3fc">points</span></td><td><span class="tag amber">array[string]</span></td><td><span class="req-badge">required</span></td><td>Achievement bullets optimized for target JD</td></tr>
+          <tr><td><span style="color:#7dd3fc">education</span></td><td><span class="tag amber">array</span></td><td><span class="req-badge">required</span></td><td>Educational history — institution, degree, location, dates, gpa</td></tr>
+          <tr><td><span style="color:#7dd3fc">skills</span></td><td><span class="tag amber">array</span></td><td><span class="req-badge">required</span></td><td>Grouped skill categories — each has name + data (array of strings)</td></tr>
+          <tr><td><span style="color:#7dd3fc">projects</span></td><td><span class="tag amber">array</span></td><td><span class="opt-badge">optional</span></td><td>Personal/academic projects with details and technologiesUsed</td></tr>
+          <tr><td><span style="color:#7dd3fc">certifications</span></td><td><span class="tag amber">array</span></td><td><span class="opt-badge">optional</span></td><td>Professional certifications list</td></tr>
+          <tr><td><span style="color:#7dd3fc">awards</span></td><td><span class="tag amber">array</span></td><td><span class="opt-badge">optional</span></td><td>Awards and recognitions</td></tr>
+          <tr><td><span style="color:#7dd3fc">extracurricular_achievements</span></td><td><span class="tag amber">array</span></td><td><span class="opt-badge">optional</span></td><td>Hackathons, events, community activities</td></tr>
+          <tr><td><span style="color:#7dd3fc">languages</span></td><td><span class="tag amber">array</span></td><td><span class="opt-badge">optional</span></td><td>Spoken/written languages</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- SAMPLE OUTPUT TAB -->
+    <div id="tab-sample" class="json-body" style="padding: 8px 0; display:none;"></div>
+
+    <!-- STATS -->
+    <div class="stats-row">
+      <div class="stat"><span class="stat-v">15</span><span class="stat-l">Top-level fields</span></div>
+      <div class="stat"><span class="stat-v">6</span><span class="stat-l">Required fields</span></div>
+      <div class="stat"><span class="stat-v">9</span><span class="stat-l">Optional fields</span></div>
+      <div class="stat"><span class="stat-v">JSON</span><span class="stat-l">Output format</span></div>
+      <div class="stat"><span class="stat-v">✓</span><span class="stat-l">Schema validated</span></div>
+    </div>
+  </div>
+
+  <!-- INFO GRID -->
+  <div class="info-grid">
+    <div class="info-card">
+      <div class="info-card-title">API Endpoints</div>
+      <div class="endpoint-row"><span class="method get">GET</span><span class="ep-path">/schema</span><span class="ep-desc">This schema definition</span></div>
+      <div class="endpoint-row"><span class="method post">POST</span><span class="ep-path">/optimize</span><span class="ep-desc">File-based inference</span></div>
+      <div class="endpoint-row"><span class="method post">POST</span><span class="ep-path">/optimize/text</span><span class="ep-desc">Text-based inference</span></div>
+      <div class="endpoint-row"><span class="method get">GET</span><span class="ep-path">/health</span><span class="ep-desc">Hardware &amp; model status</span></div>
+    </div>
+    <div class="info-card">
+      <div class="info-card-title">Validation Rules</div>
+      <p>Every model output is validated against this schema before being returned to the caller. Required fields must be present and non-null. Arrays must contain at least one element for <code style="color:var(--accent);font-family:var(--mono);font-size:12px">experiences</code>, <code style="color:var(--accent);font-family:var(--mono);font-size:12px">education</code>, and <code style="color:var(--accent);font-family:var(--mono);font-size:12px">skills</code>. Hallucination detection cross-references all generated bullets against the original source resume before schema validation passes.</p>
+    </div>
+  </div>
+
+</div>
+
+<footer>
+  DTSC 5082 · Seminar in Research and Research Methodology · Group Project · Professor: Clifford K. Whitworth<br/><br/>
+  Model: <span>Qwen3-4B-Instruct-2507</span> · Fine-tuning: <span>QLoRA LoRA adapter</span> · Endpoint: <span>GET /schema</span>
+</footer>
+
+<script>
+// ── Data ──────────────────────────────────────────────────────────────────────
+const SCHEMA = {
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "TailoredResumeOutput",
+  "description": "Structured output from Resume Optimization SLM (Qwen3-4B + QLoRA). Every field mirrors the model's expected generation format.",
+  "type": "object",
+  "required": ["personal_information","summary","experiences","education","skills"],
+  "properties": {
+    "personal_information": {
+      "type": "object",
+      "required": ["name","email"],
+      "properties": {
+        "name":     { "type": "string", "description": "Full candidate name" },
+        "email":    { "type": "string", "format": "email" },
+        "phone":    { "type": "string" },
+        "location": { "type": "string" },
+        "socials":  {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": { "type": "string" },
+              "link": { "type": "string", "format": "uri" }
+            }
+          }
+        }
+      }
+    },
+    "summary": {
+      "type": "string",
+      "description": "3–4 sentence professional summary tailored to target JD"
+    },
+    "experiences": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["designation","companyName","start_date","end_date","points"],
+        "properties": {
+          "designation": { "type": "string" },
+          "companyName":  { "type": "string" },
+          "location":     { "type": "string" },
+          "start_date":   { "type": "string" },
+          "end_date":     { "type": "string" },
+          "points":       { "type": "array", "items": { "type": "string" }, "minItems": 1 }
+        }
+      }
+    },
+    "education": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "properties": {
+          "institution": { "type": "string" },
+          "degree":      { "type": "string" },
+          "location":    { "type": "string" },
+          "start_date":  { "type": "string" },
+          "end_date":    { "type": "string" },
+          "gpa":         { "type": "string" }
+        }
+      }
+    },
+    "skills": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": { "type": "string", "description": "Skill category name" },
+          "data": { "type": "array", "items": { "type": "string" } }
+        }
+      }
+    },
+    "projects": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "projectName":      { "type": "string" },
+          "caption":          { "type": "string" },
+          "location":         { "type": "string" },
+          "start_date":       { "type": "string" },
+          "end_date":         { "type": "string" },
+          "projectDetails":   { "type": "array", "items": { "type": "string" } },
+          "technologiesUsed": { "type": "array", "items": { "type": "string" } },
+          "externalSources":  { "type": "array", "items": { "type": "string" } }
+        }
+      }
+    },
+    "certifications": {
+      "type": "array",
+      "items": { "type": "object" }
+    },
+    "awards": {
+      "type": "array",
+      "items": { "type": "object" }
+    },
+    "extracurricular_achievements": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "name":        { "type": "string" },
+          "type":        { "type": "string" },
+          "location":    { "type": "string" },
+          "date":        { "type": "string" },
+          "description": { "type": "string" }
+        }
+      }
+    },
+    "languages": {
+      "type": "array",
+      "items": { "type": "string" }
+    }
+  }
+};
+
+const SAMPLE = {
+  "personal_information": {
+    "name": "MALLARAPU PAVAN ABHINAV",
+    "email": "pempabhinav1426@gmail.com",
+    "phone": "+91-8919707712",
+    "location": "Alwal, Hyderabad, Telangana 500010",
+    "socials": [
+      { "name": "linkedin", "link": "https://www.linkedin.com/in/abhinav1426/" }
+    ]
+  },
+  "summary": "Software Engineer with experience in full-stack development, microservices, and AI-driven solutions. Proven track record in building scalable applications using Java, Spring Boot, AWS, GCP, and AI/ML models. Expertise in data extraction, document parsing, and system optimization with a focus on performance and security.",
+  "experiences": [
+    {
+      "designation": "Software Engineer",
+      "companyName": "ADP",
+      "location": "Hyderabad, India",
+      "start_date": "June 2022",
+      "end_date": "Present",
+      "points": [
+        "Built GenAI-powered data extraction system (Project Manthan), cutting onboarding from 6 months to 15 days.",
+        "Designed asynchronous Java application gateway to manage high-traffic microservice routing.",
+        "Managed Spring Boot & JDK lifecycle upgrades across multiple production microservices.",
+        "Contributed to LLM training for complex document parsing and data extraction workflows.",
+        "Resolved security vulnerabilities and optimized Smart Compliance Canada application performance."
+      ]
+    }
+  ],
+  "education": [
+    {
+      "institution": "GEETANJALI COLLEGE OF ENGINEERING AND TECHNOLOGY",
+      "degree": "B.Tech in Computer Science Engineering",
+      "location": "Hyderabad, Telangana",
+      "start_date": "June 2018",
+      "end_date": "June 2022",
+      "gpa": "7.34/10"
+    }
+  ],
+  "skills": [
+    {
+      "name": "Languages & Frameworks",
+      "data": ["Java","Spring Boot","Python","ReactJs","NextJs","FastAPI","Django"]
+    },
+    {
+      "name": "Cloud & Infrastructure",
+      "data": ["AWS","GCP","Docker","Kubernetes","Jenkins"]
+    },
+    {
+      "name": "AI / ML",
+      "data": ["LLM","MCP","Agentic workflow","RAG","Document parsing"]
+    }
+  ],
+  "projects": [
+    {
+      "projectName": "Music Recommendation System",
+      "caption": "Emotion Recognition and Music Recommendation",
+      "start_date": "August 2021",
+      "end_date": "January 2022",
+      "projectDetails": [
+        "Emotion recognition via YOLO3 + TensorFlow CNN model.",
+        "OpenCV-based real-time capture feeding into prediction pipeline.",
+        "Song recommendations via YouTube, Spotify, Amazon Prime Music APIs."
+      ],
+      "technologiesUsed": ["YOLO3","TensorFlow","OpenCV","Python","API Integration"],
+      "externalSources": []
+    }
+  ],
+  "certifications": [],
+  "awards": [],
+  "extracurricular_achievements": [
+    { "name": "Winner", "type": "Hackathon", "location": "Hyderabad, Telangana", "date": "July 2022", "description": "Jumpstart Hackathon — ADP" }
+  ],
+  "languages": []
+};
+
+// ── JSON Renderer ─────────────────────────────────────────────────────────────
+function syntaxLine(text) {
+  // tokenize: strings, numbers, booleans, null, punctuation
+  return text
+    .replace(/("(?:[^"\\]|\\.)*")(\s*:)/g, '<span class="jk">$1</span><span class="jp">$2</span>')
+    .replace(/:\s*("(?:[^"\\]|\\.)*")/g, (m, s) => ': <span class="jv-str">' + s + '</span>')
+    .replace(/:\s*(-?\d+\.?\d*)/g, (m, n) => ': <span class="jv-num">' + n + '</span>')
+    .replace(/:\s*(true|false)/g, (m, b) => ': <span class="jv-bool">' + b + '</span>')
+    .replace(/:\s*(null)/g, ': <span class="jv-null">null</span>')
+    .replace(/^(\s*)("(?:[^"\\]|\\.)*")(\s*,?\s*)$/, (m, ws, s, end) => ws + '<span class="jv-str">' + s + '</span>' + end)
+    .replace(/^(\s*)(-?\d+\.?\d*)(,?\s*)$/, (m, ws, n, end) => ws + '<span class="jv-num">' + n + '</span>' + end)
+    .replace(/^(\s*)(true|false)(,?\s*)$/, (m, ws, b, end) => ws + '<span class="jv-bool">' + b + '</span>' + end)
+    .replace(/^(\s*)(null)(,?\s*)$/, (m, ws, n, end) => ws + '<span class="jv-null">' + n + '</span>' + end);
+}
+
+function renderJSON(obj, containerId) {
+  const raw = JSON.stringify(obj, null, 2);
+  const lines = raw.split('\n');
+  const container = document.getElementById(containerId);
+  container.innerHTML = '';
+  lines.forEach((line, i) => {
+    const div = document.createElement('div');
+    div.className = 'json-line';
+    div.innerHTML = `<span class="ln">${i+1}</span><span class="json-content">${syntaxLine(escHtml(line))}</span>`;
+    container.appendChild(div);
+  });
+}
+
+function escHtml(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+// ── Tab switching ─────────────────────────────────────────────────────────────
+function switchTab(name, el) {
+  document.getElementById('tab-viewer').style.display  = name==='viewer' ? 'block' : 'none';
+  document.getElementById('tab-schema').style.display  = name==='schema' ? 'block' : 'none';
+  document.getElementById('tab-sample').style.display  = name==='sample' ? 'block' : 'none';
+  document.querySelectorAll('.tabbar .tab').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+  if (name === 'sample') renderJSON(SAMPLE, 'tab-sample');
+}
+
+// ── Copy / Download ───────────────────────────────────────────────────────────
+function copyJSON() {
+  navigator.clipboard.writeText(JSON.stringify(SCHEMA, null, 2)).then(() => {
+    const btn = document.querySelector('.tb-btn');
+    btn.textContent = '✓ Copied!';
+    setTimeout(() => btn.textContent = '⎘ Copy JSON', 2000);
+  });
+}
+function downloadJSON() {
+  const blob = new Blob([JSON.stringify(SCHEMA, null, 2)], {type:'application/json'});
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+  a.download = 'tailored_resume.schema.json'; a.click();
+}
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+window.addEventListener('load', () => renderJSON(SCHEMA, 'tab-viewer'));
+</script>
+</body>
+</html>
