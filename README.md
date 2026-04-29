@@ -158,7 +158,7 @@ open Model_Deployment.html
 ```
 
 ### Option 2: Live Demo
-Visit: [https://techie03.github.io/XAI-Integration-and-Deployment/Model_Deployment.html](https://techie03.github.io/XAI-Integration-and-Deployment/Model_Deployment.html)
+Visit: [https://techie03.github.io/Professional-Pitch/Model_Deployment.html](https://techie03.github.io/Professional-Pitch/Model_Deployment.html)
 
 ### Using the Resume AI Tool
 1. **Upload** your resume (PDF, DOCX, or TXT)
